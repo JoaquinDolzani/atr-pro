@@ -152,7 +152,7 @@ function HomeTab({ athlete: a, patch, coachWa }: { athlete: Athlete; patch: (m: 
             <Plus className="size-4" /> Registrar entrenamiento
           </button>
 
-          {report && <ReportCard report={report} />}
+          {report && <ReportCard report={report} athleteId={a.id} coachWa={coachWa} />}
         </div>
       ) : (
         <div className="bg-card border border-border rounded-xl p-6 text-center text-sm text-muted-foreground">
@@ -160,11 +160,17 @@ function HomeTab({ athlete: a, patch, coachWa }: { athlete: Athlete; patch: (m: 
         </div>
       )}
 
-      <a href={`https://wa.me/${coachWa}?text=${encodeURIComponent(`Hola Coach! Soy ${a.name}. Consulta del ${selected}. http://localhost?role=coach&athleteId=${a.id}&date=${selected}`)}`}
-        target="_blank" rel="noreferrer"
-        className="w-full bg-success/20 border border-success text-success font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
-        <MessageCircle className="size-4" /> Hablar con el coach
-      </a>
+      {coachWa ? (
+        <a href={waLink(coachWa, `Hola Coach! Soy ${a.name}. Consulta del ${fmtDateAR(selected)}.`)}
+          target="_blank" rel="noreferrer"
+          className="w-full bg-success/20 border border-success text-success font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+          <MessageCircle className="size-4" /> Hablar con el coach
+        </a>
+      ) : (
+        <div className="w-full bg-secondary/40 border border-border text-muted-foreground text-xs py-3 rounded-xl text-center">
+          El coach aún no configuró su número de WhatsApp.
+        </div>
+      )}
 
       {showReport && (
         <ReportModal
