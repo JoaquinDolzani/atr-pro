@@ -193,6 +193,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
 
       {/* Carga mensual + Macrociclo integrado */}
       <Section icon={<LineIcon className="size-4" />} title="Carga mensual">
+        <p className="text-[11px] text-muted-foreground mb-1">Tocá una barra para seleccionar el mes y editar su macrociclo.</p>
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
@@ -200,23 +201,30 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
               <XAxis dataKey="month" stroke="#999" fontSize={11} />
               <YAxis stroke="#999" fontSize={11} />
               <Tooltip contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }} />
-              <Bar dataKey="km" fill="oklch(0.92 0.22 145)" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="km" radius={[6, 6, 0, 0]} onClick={(d: { key: string }) => setSelectedMonth(d.key)} cursor="pointer">
+                {chartData.map((d) => (
+                  <Cell key={d.key} fill={d.key === selectedMonth ? "oklch(0.92 0.22 145)" : "oklch(0.55 0.12 145 / 0.55)"} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-4 pt-3 border-t border-border">
-          <p className="text-[10px] uppercase tracking-widest text-primary mb-2 flex items-center gap-1"><Activity className="size-3" /> Macrociclo del mes</p>
+          <p className="text-[10px] uppercase tracking-widest text-primary mb-2 flex items-center gap-1">
+            <Activity className="size-3" /> Macrociclo · <span className="text-foreground">{selectedMonth}</span>
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {PHASES.map((p) => (
               <button
                 key={p}
-                onClick={() => patch((x) => ({ ...x, macroByMonth: { ...x.macroByMonth, [cm]: p } }))}
+                onClick={() => patch((x) => ({ ...x, macroByMonth: { ...x.macroByMonth, [selectedMonth]: p } }))}
                 className={`p-2 rounded-lg text-sm border transition ${phase === p ? "bg-primary text-primary-foreground border-primary glow" : "border-border hover:border-primary/60"}`}
               >{p}</button>
             ))}
           </div>
         </div>
       </Section>
+
 
       {/* Calculadora VAM */}
       <Section icon={<Activity className="size-4" />} title="Calculadora de intensidades (VAM)">
