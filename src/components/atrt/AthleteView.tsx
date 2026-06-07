@@ -1,6 +1,22 @@
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X } from "lucide-react";
-import { useDB, type Athlete, type Report, certStatus, monthsBetween, activeRace, fmtTime, paceForZone } from "../../lib/atrt-store";
+import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send } from "lucide-react";
+import { useDB, type Athlete, type Report, certStatus, monthsBetween, activeRace, fmtTime, fmtDateAR, paceForZone } from "../../lib/atrt-store";
+
+function waLink(number: string, text: string) {
+  const clean = (number || "").replace(/[^0-9]/g, "");
+  return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
+}
+function reportMessage(athleteId: string, date: string, km: number, timeMin: number, rpe: number) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const link = `${origin}/?role=coach&athleteId=${athleteId}&date=${date}`;
+  return `¡Hola Coach! Te paso el reporte de mi entrenamiento del día ${fmtDateAR(date)}.
+
+🏃‍♂️ Km reales: ${km}
+⏱️ Tiempo total: ${timeMin} min
+📈 RPE (Esfuerzo): ${rpe}/10
+
+🔗 Podés revisar las capturas de pantalla y enlaces adjuntos ingresando directo a mi sesión desde acá: ${link}`;
+}
 
 export function AthleteView({ athleteId }: { athleteId: string }) {
   const [db, update] = useDB();
@@ -22,10 +38,14 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
         <p className="text-sm text-muted-foreground max-w-xs">
           Tu cuenta está suspendida por adeudar 3 meses o más. Contactá al coach para regularizar.
         </p>
-        <a href={`https://wa.me/${db.coach.whatsapp}?text=${encodeURIComponent("Hola Coach, quiero regularizar mi pago.")}`}
-          className="bg-success/20 border border-success text-success px-4 py-2 rounded-lg flex items-center gap-2">
-          <MessageCircle className="size-4" /> Contactar al coach
-        </a>
+        {db.coach.whatsapp ? (
+          <a href={waLink(db.coach.whatsapp, "Hola Coach, quiero regularizar mi pago.")} target="_blank" rel="noreferrer"
+            className="bg-success/20 border border-success text-success px-4 py-2 rounded-lg flex items-center gap-2">
+            <MessageCircle className="size-4" /> Contactar al coach
+          </a>
+        ) : (
+          <p className="text-xs text-muted-foreground">El coach aún no configuró su WhatsApp.</p>
+        )}
       </div>
     );
   }
