@@ -193,7 +193,7 @@ function Block({ icon, title, body, primary }: { icon: React.ReactNode; title: s
   );
 }
 
-function ReportCard({ report }: { report: Report }) {
+function ReportCard({ report, athleteId, coachWa }: { report: Report; athleteId: string; coachWa: string }) {
   return (
     <div className="bg-success/10 border border-success/40 rounded-xl p-3 space-y-2">
       <p className="text-xs uppercase tracking-widest text-success">Entrenamiento reportado</p>
