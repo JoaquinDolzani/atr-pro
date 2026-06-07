@@ -332,10 +332,47 @@ function ProfileTab({ athlete: a, patch }: { athlete: Athlete; patch: (m: (a: At
         </div>
       </section>
 
-      <section className="bg-card border border-border rounded-2xl p-4">
-        <h3 className="text-xs uppercase tracking-widest text-primary mb-2">Certificado médico</h3>
-        <input type="date" value={a.certificateDate} onChange={(e) => patch((x) => ({ ...x, certificateDate: e.target.value }))}
-          className="w-full bg-input border border-border rounded px-2 py-2 text-sm" />
+      <section className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <h3 className="text-xs uppercase tracking-widest text-primary">Datos personales</h3>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">DNI *</label>
+          <input value={a.dni} onChange={(e) => patch((x) => ({ ...x, dni: e.target.value }))}
+            placeholder="00.000.000" required
+            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm font-mono" />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Fecha de nacimiento *</label>
+          <input type="date" value={a.birthDate} onChange={(e) => patch((x) => ({ ...x, birthDate: e.target.value }))} required
+            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm" />
+        </div>
+      </section>
+
+      <section className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <h3 className="text-xs uppercase tracking-widest text-primary">Certificado médico</h3>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Fecha de emisión</label>
+          <input type="date" value={a.certificateDate} onChange={(e) => patch((x) => ({ ...x, certificateDate: e.target.value }))}
+            className="w-full mt-1 bg-input border border-border rounded-lg px-2 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Archivo o foto del certificado</label>
+          <label className="mt-1 w-full border-2 border-dashed border-border rounded-lg py-3 text-sm flex items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary cursor-pointer">
+            <Upload className="size-4" /> Subir foto o archivo del Certificado Médico
+            <input type="file" accept="image/*" hidden onChange={(e) => {
+              const f = e.target.files?.[0]; if (!f) return;
+              const r = new FileReader();
+              r.onload = () => patch((x) => ({ ...x, certificateFile: r.result as string }));
+              r.readAsDataURL(f);
+            }} />
+          </label>
+          {a.certificateFile && (
+            <div className="mt-2 flex items-center gap-2 bg-secondary/60 rounded-lg p-2">
+              <img src={a.certificateFile} alt="Certificado" className="size-12 rounded object-cover border border-border" />
+              <p className="text-xs text-success flex items-center gap-1"><FileText className="size-3" /> Certificado cargado</p>
+              <button onClick={() => patch((x) => ({ ...x, certificateFile: undefined }))} className="ml-auto text-muted-foreground"><X className="size-4" /></button>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="bg-card border border-border rounded-2xl p-4">
