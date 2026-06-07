@@ -22,6 +22,7 @@ export interface TrainingBlock {
   zone: ZoneKey;
   sessionType?: SessionType;
   microcycle?: Microcycle;
+  plannedKm?: number;
 }
 
 export interface Report {
@@ -128,19 +129,19 @@ function seed(): DB {
         ec: "15 min trote suave + movilidad articular + 4x80m progresivos.",
         main: "8 x 1000m a ritmo R5 con 2' de pausa trote. Mantener cadencia alta.",
         vc: "12 min trote regenerativo + elongación 10 min.",
-        zone: "R5", sessionType: "Pasadas", microcycle: "Alto",
+        zone: "R5", sessionType: "Pasadas", microcycle: "Alto", plannedKm: 14,
       },
       [yesterday]: {
         ec: "10 min trote + drills técnicos.",
         main: "Rodaje continuo de 50 min en R2.",
         vc: "5 min caminata + elongación.",
-        zone: "R2", sessionType: "Fondo", microcycle: "Medio",
+        zone: "R2", sessionType: "Fondo", microcycle: "Medio", plannedKm: 12,
       },
       [addDays(now, 2).toISOString().slice(0, 10)]: {
         ec: "20 min trote progresivo.",
         main: "Fartlek 6x(3'fuerte/2'suave) en R4.",
         vc: "10 min trote suave.",
-        zone: "R4", sessionType: "Tempo", microcycle: "Alto",
+        zone: "R4", sessionType: "Tempo", microcycle: "Alto", plannedKm: 10,
       },
     },
     reports: {
