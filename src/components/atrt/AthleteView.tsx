@@ -219,6 +219,13 @@ function ReportCard({ report, athleteId, coachWa }: { report: Report; athleteId:
         </div>
       )}
       {report.notes && <p className="text-xs text-muted-foreground italic">"{report.notes}"</p>}
+      {coachWa && (
+        <a href={waLink(coachWa, reportMessage(athleteId, report.date, report.km, report.timeMin, report.rpe))}
+          target="_blank" rel="noreferrer"
+          className="mt-1 w-full bg-success text-primary-foreground font-semibold py-2 rounded-lg flex items-center justify-center gap-2 text-sm">
+          <Send className="size-4" /> Enviar reporte por WhatsApp
+        </a>
+      )}
     </div>
   );
 }
