@@ -138,7 +138,8 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
   };
 
   const cm = monthKey();
-  const phase = a.macroByMonth[cm] || "General";
+  const [selectedMonth, setSelectedMonth] = useState<string>(cm);
+  const phase = a.macroByMonth[selectedMonth] || "General";
   const zs = zones(a);
   const v = vam(a);
   const ar = activeRace(a);
@@ -148,7 +149,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
     return Object.entries(a.monthlyKm)
       .sort(([x], [y]) => x.localeCompare(y))
       .slice(-8)
-      .map(([k, v]) => ({ month: k.slice(2), km: v }));
+      .map(([k, v]) => ({ month: k.slice(2), km: v, key: k }));
   }, [a.monthlyKm]);
 
   return (
