@@ -22,6 +22,7 @@ export interface TrainingBlock {
   zone: ZoneKey;
   sessionType?: SessionType;
   microcycle?: Microcycle;
+  plannedKm?: number;
 }
 
 export interface Report {
