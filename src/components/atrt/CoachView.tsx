@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import {
   ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, DollarSign,
   LineChart as LineIcon, Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save,
+  CalendarDays, Trash2, ChevronRight,
 } from "lucide-react";
 import {
   useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock,
