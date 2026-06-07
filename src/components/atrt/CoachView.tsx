@@ -326,85 +326,205 @@ function CertModal({ src, onClose }: { src: string; onClose: () => void }) {
   );
 }
 
-function AssignTraining({ onAssign }: { onAssign: (date: string, block: TrainingBlock) => void }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [sessionType, setSessionType] = useState<SessionType>("Pasadas");
-  const [microcycle, setMicrocycle] = useState<Microcycle>("Medio");
-  const [zone, setZone] = useState<ZoneKey>("R3");
-  const [ec, setEc] = useState("");
-  const [main, setMain] = useState("");
-  const [vc, setVc] = useState("");
+type PlannerProps = {
+  trainings: Record<string, TrainingBlock>;
+  onSave: (date: string, block: TrainingBlock) => void;
+  onDelete: (date: string) => void;
+};
+
+const EMPTY_BLOCK: TrainingBlock = {
+  ec: "", main: "", vc: "", zone: "R3",
+  sessionType: "Pasadas", microcycle: "Medio", plannedKm: 0,
+};
+
+function toIso(d: Date) { return d.toISOString().slice(0, 10); }
+
+function buildMonthWeeks(viewMonth: Date) {
+  const first = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+  const startOffset = first.getDay(); // 0=Dom
+  const start = new Date(first); start.setDate(first.getDate() - startOffset);
+  const weeks: Date[][] = [];
+  const cursor = new Date(start);
+  for (let w = 0; w < 6; w++) {
+    const row: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      row.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(row);
+    // si ya pasamos completamente al siguiente mes y no es la primera fila, cortamos
+    if (row[6].getMonth() !== viewMonth.getMonth() && row[0].getMonth() !== viewMonth.getMonth()) break;
+  }
+  return weeks;
+}
+
+function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
+  const today = new Date();
+  const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<string>(toIso(today));
+  const [form, setForm] = useState<TrainingBlock>(() => trainings[toIso(today)] || EMPTY_BLOCK);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const save = () => {
-    if (!ec.trim() || !main.trim() || !vc.trim()) { setMsg("Completá los 3 bloques (EC, Principal, VC)."); return; }
-    onAssign(date, { ec, main, vc, zone, sessionType, microcycle });
-    setMsg("✓ Entrenamiento asignado");
-    setEc(""); setMain(""); setVc("");
-    setTimeout(() => setMsg(null), 2200);
+  const isEdit = !!trainings[selectedDate];
+
+  const selectDay = (d: Date) => {
+    const iso = toIso(d);
+    setSelectedDate(iso);
+    setForm(trainings[iso] ? { ...EMPTY_BLOCK, ...trainings[iso] } : EMPTY_BLOCK);
+    setMsg(null);
   };
 
+  const weeks = useMemo(() => buildMonthWeeks(viewMonth), [viewMonth]);
+
+  const save = () => {
+    if (!form.ec.trim() || !form.main.trim() || !form.vc.trim()) {
+      setMsg("Completá los 3 bloques (EC, Principal, VC)."); return;
+    }
+    onSave(selectedDate, form);
+    setMsg(isEdit ? "✓ Cambios guardados" : "✓ Sesión asignada");
+    setTimeout(() => setMsg(null), 2000);
+  };
+
+  const remove = () => {
+    if (!isEdit) return;
+    onDelete(selectedDate);
+    setForm(EMPTY_BLOCK);
+    setMsg("🗑️ Sesión eliminada");
+    setTimeout(() => setMsg(null), 2000);
+  };
+
+  const monthLabel = viewMonth.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+
   return (
-    <Section icon={<ClipboardList className="size-4" />} title="Cargar entrenamiento">
-      <div className="grid grid-cols-1 gap-2">
-        <div>
-          <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Fecha</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1" />
+    <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
+      {/* Calendario */}
+      <div className="bg-secondary/40 rounded-xl p-3">
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
+            className="p-1 rounded hover:bg-secondary"><ChevronLeft className="size-4" /></button>
+          <p className="text-sm font-semibold flex items-center gap-1 capitalize">
+            <CalendarDays className="size-4 text-primary" />{monthLabel}
+          </p>
+          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
+            className="p-1 rounded hover:bg-secondary"><ChevronRight className="size-4" /></button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[1fr_auto] gap-2">
           <div>
-            <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Tipo de sesión</label>
-            <select value={sessionType} onChange={(e) => setSessionType(e.target.value as SessionType)}
+            <div className="grid grid-cols-7 gap-1 text-[10px] text-muted-foreground text-center mb-1">
+              {["D","L","M","X","J","V","S"].map((d) => <div key={d}>{d}</div>)}
+            </div>
+            <div className="space-y-1">
+              {weeks.map((row, i) => (
+                <div key={i} className="grid grid-cols-7 gap-1">
+                  {row.map((d) => {
+                    const iso = toIso(d);
+                    const inMonth = d.getMonth() === viewMonth.getMonth();
+                    const has = !!trainings[iso];
+                    const selected = iso === selectedDate;
+                    return (
+                      <button key={iso} onClick={() => selectDay(d)}
+                        className={`aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition
+                          ${selected ? "bg-primary text-primary-foreground glow font-bold"
+                            : has ? "bg-primary/20 border border-primary/60 text-foreground"
+                            : inMonth ? "bg-card border border-border" : "text-muted-foreground/40"}`}>
+                        <span>{d.getDate()}</span>
+                        {has && !selected && <span className="size-1 rounded-full bg-primary mt-0.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1 pt-[22px]">
+            {weeks.map((row, i) => {
+              const km = row.reduce((acc, d) => acc + (trainings[toIso(d)]?.plannedKm || 0), 0);
+              return (
+                <div key={i} className="aspect-square min-w-[44px] rounded-md bg-card border border-border flex flex-col items-center justify-center text-center px-1">
+                  <span className="text-[8px] uppercase tracking-wider text-muted-foreground leading-none">Sem</span>
+                  <span className={`text-xs font-bold leading-tight ${km > 0 ? "text-primary" : "text-muted-foreground"}`}>{km}</span>
+                  <span className="text-[8px] text-muted-foreground leading-none">km</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Formulario */}
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-widest text-primary">
+            {isEdit ? "Editando sesión" : "Nueva sesión"} · <span className="text-foreground">{fmtDateAR(selectedDate)}</span>
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Tipo</label>
+            <select value={form.sessionType} onChange={(e) => setForm({ ...form, sessionType: e.target.value as SessionType })}
               className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
               {SESSIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Microciclo</label>
-            <select value={microcycle} onChange={(e) => setMicrocycle(e.target.value as Microcycle)}
+            <select value={form.microcycle} onChange={(e) => setForm({ ...form, microcycle: e.target.value as Microcycle })}
               className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
               {MICROS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Zona</label>
+            <select value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value as ZoneKey })}
+              className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
+              {(["R0","R1","R2","R3","R4","R5","R6"] as ZoneKey[]).map((z) => <option key={z} value={z}>{z}</option>)}
+            </select>
+          </div>
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Zona objetivo</label>
-          <select value={zone} onChange={(e) => setZone(e.target.value as ZoneKey)}
-            className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
-            {(["R0","R1","R2","R3","R4","R5","R6"] as ZoneKey[]).map((z) => <option key={z} value={z}>{z}</option>)}
-          </select>
+          <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Km planificados</label>
+          <input type="number" min={0} step="0.5" value={form.plannedKm ?? 0}
+            onChange={(e) => setForm({ ...form, plannedKm: +e.target.value })}
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
-
         <div>
           <label className="text-[10px] uppercase tracking-widest text-primary">1) Entrada en Calor (EC)</label>
-          <textarea value={ec} onChange={(e) => setEc(e.target.value)} rows={2}
+          <textarea value={form.ec} onChange={(e) => setForm({ ...form, ec: e.target.value })} rows={2}
             placeholder="Ej: 15' trote suave + movilidad + 4x80m progresivos."
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-primary">2) Bloque Principal</label>
-          <textarea value={main} onChange={(e) => setMain(e.target.value)} rows={3}
+          <textarea value={form.main} onChange={(e) => setForm({ ...form, main: e.target.value })} rows={3}
             placeholder="Ej: 8 x 1000m en R5 con 2' pausa trote."
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-primary">3) Vuelta a la Calma (VC)</label>
-          <textarea value={vc} onChange={(e) => setVc(e.target.value)} rows={2}
+          <textarea value={form.vc} onChange={(e) => setForm({ ...form, vc: e.target.value })} rows={2}
             placeholder="Ej: 10' trote regenerativo + elongación."
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
       </div>
 
-      {msg && <p className={`text-xs mt-2 ${msg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{msg}</p>}
+      {msg && <p className={`text-xs mt-2 ${msg.startsWith("✓") ? "text-success" : msg.startsWith("🗑️") ? "text-warn" : "text-destructive"}`}>{msg}</p>}
 
-      <button onClick={save}
-        className="mt-3 w-full bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
-        <Plus className="size-4" /> Asignar Entrenamiento
-      </button>
+      <div className="mt-3 flex gap-2">
+        <button onClick={save}
+          className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
+          {isEdit ? <><Save className="size-4" /> 💾 Guardar Cambios</> : <><Plus className="size-4" /> + Asignar</>}
+        </button>
+        {isEdit && (
+          <button onClick={remove}
+            className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
+            <Trash2 className="size-4" /> Eliminar
+          </button>
+        )}
+      </div>
     </Section>
   );
 }
+
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
