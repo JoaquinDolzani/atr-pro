@@ -299,7 +299,11 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
       </Section>
 
       {/* Cargar entrenamiento */}
-      <AssignTraining onAssign={(date, block) => patch((x) => ({ ...x, trainings: { ...x.trainings, [date]: block } }))} />
+      <TrainingPlanner
+        trainings={a.trainings}
+        onSave={(date, block) => patch((x) => ({ ...x, trainings: { ...x.trainings, [date]: block } }))}
+        onDelete={(date) => patch((x) => { const t = { ...x.trainings }; delete t[date]; return { ...x, trainings: t }; })}
+      />
 
       {showCert && a.certificateFile && (
         <CertModal src={a.certificateFile} onClose={() => setShowCert(false)} />
