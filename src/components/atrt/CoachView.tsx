@@ -1,16 +1,22 @@
 import { useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, DollarSign, LineChart as LineIcon, Trophy, Plus, Star } from "lucide-react";
 import {
-  useDB, type Athlete, type MacroPhase, type ZoneKey,
-  certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, activeRace,
+  ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, DollarSign,
+  LineChart as LineIcon, Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save,
+} from "lucide-react";
+import {
+  useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock,
+  certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
 } from "../../lib/atrt-store";
 
 const PHASES: MacroPhase[] = ["General", "Pre-competitivo", "Competitivo", "Transición"];
+const SESSIONS: SessionType[] = ["Pasadas", "Fondo", "Tempo", "Fuerza", "Cuestas"];
+const MICROS: Microcycle[] = ["Bajo", "Medio", "Alto"];
 
 export function CoachView() {
-  const [db] = useDB();
+  const [db, update] = useDB();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const selected = db.athletes.find((a) => a.id === selectedId) || null;
 
   if (selected) return <AthleteCard athleteId={selected.id} onBack={() => setSelectedId(null)} />;
@@ -22,9 +28,15 @@ export function CoachView() {
           <p className="text-xs uppercase tracking-widest text-primary/80">Coach</p>
           <h2 className="text-2xl font-bold">Panel de atletas</h2>
         </div>
-        <div className="text-right text-xs text-muted-foreground">
-          <p>{db.athletes.length} corredores</p>
-          <p className="text-primary">{monthKey()}</p>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowSettings(true)}
+            className="bg-card border border-border hover:border-primary/60 rounded-full p-2 transition" title="Configuración">
+            <Settings className="size-4 text-primary" />
+          </button>
+          <div className="text-right text-xs text-muted-foreground">
+            <p>{db.athletes.length} corredores</p>
+            <p className="text-primary">{monthKey()}</p>
+          </div>
         </div>
       </header>
 
@@ -42,6 +54,7 @@ export function CoachView() {
                   <CertDot status={certStatus(a.certificateDate)} />
                   <PayDot owed={a.monthsOwed} />
                 </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Macro: <span className="text-primary">{a.macroByMonth[monthKey()] || "—"}</span>
                 </p>
@@ -55,6 +68,45 @@ export function CoachView() {
             </div>
           </button>
         ))}
+      </div>
+
+      {showSettings && (
+        <SettingsModal
+          initial={db.coach}
+          onClose={() => setShowSettings(false)}
+          onSave={(coach) => { update((d) => ({ ...d, coach })); setShowSettings(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SettingsModal({ initial, onClose, onSave }: { initial: { name: string; whatsapp: string }; onClose: () => void; onSave: (c: { name: string; whatsapp: string }) => void }) {
+  const [name, setName] = useState(initial.name);
+  const [wa, setWa] = useState(initial.whatsapp);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-card border-t sm:border border-border rounded-t-3xl sm:rounded-2xl w-full max-w-md p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg flex items-center gap-2"><Settings className="size-5 text-primary" /> Configuración</h3>
+          <button onClick={onClose}><X className="size-5" /></button>
+        </div>
+        <div>
+          <label className="text-xs uppercase tracking-widest text-primary">Nombre del entrenador</label>
+          <input value={name} onChange={(e) => setName(e.target.value)}
+            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs uppercase tracking-widest text-primary">Número de WhatsApp del entrenador</label>
+          <input value={wa} onChange={(e) => setWa(e.target.value.replace(/[^0-9]/g, ""))}
+            placeholder="Ej: 5491133334444 (con código de país, sin +)"
+            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm font-mono" />
+          <p className="text-[11px] text-muted-foreground mt-1">Se usará en el botón de WhatsApp del atleta para enviar reportes.</p>
+        </div>
+        <button onClick={() => onSave({ name, whatsapp: wa })}
+          className="w-full bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl glow flex items-center justify-center gap-2">
+          <Save className="size-4" /> Guardar configuración
+        </button>
       </div>
     </div>
   );
@@ -77,7 +129,7 @@ function PayDot({ owed }: { owed: number }) {
 function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => void }) {
   const [db, update] = useDB();
   const a = db.athletes.find((x) => x.id === athleteId)!;
-  const [showChart, setShowChart] = useState(false);
+  const [showCert, setShowCert] = useState(false);
   const [editVAM, setEditVAM] = useState(false);
 
   const patch = (mut: (a: Athlete) => Athlete) => {
@@ -89,6 +141,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
   const zs = zones(a);
   const v = vam(a);
   const ar = activeRace(a);
+  const cs = certStatus(a.certificateDate);
 
   const chartData = useMemo(() => {
     return Object.entries(a.monthlyKm)
@@ -103,14 +156,16 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <ChevronLeft className="size-4" /> Volver
       </button>
 
+      {/* Cabecera: datos personales */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-primary">Ficha técnica</p>
-            <h2 className="text-2xl font-bold">{a.name}</h2>
-            <p className="text-xs text-muted-foreground">{a.email}</p>
+            <h2 className="text-2xl font-bold truncate">{a.name}</h2>
+            <p className="text-xs text-muted-foreground mt-1">DNI <span className="text-foreground">{a.dni || "—"}</span> · Nac. <span className="text-foreground">{fmtDateAR(a.birthDate)}</span></p>
+            <p className="text-[11px] text-muted-foreground">{a.email}</p>
           </div>
-          <div className="flex gap-2"><CertDot status={certStatus(a.certificateDate)} /><PayDot owed={a.monthsOwed} /></div>
+          <div className="flex gap-2 shrink-0"><CertDot status={cs} /><PayDot owed={a.monthsOwed} /></div>
         </div>
         <div className="grid grid-cols-3 gap-2 mt-4 text-center">
           <Stat label="Semana" value={`${weekKmFor(a).toFixed(1)}km`} />
@@ -119,37 +174,46 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         </div>
       </div>
 
-      {/* Macrociclo */}
-      <Section icon={<Activity className="size-4" />} title="Macrociclo del mes">
-        <div className="grid grid-cols-2 gap-2">
-          {PHASES.map((p) => (
-            <button
-              key={p}
-              onClick={() => patch((x) => ({ ...x, macroByMonth: { ...x.macroByMonth, [cm]: p } }))}
-              className={`p-2 rounded-lg text-sm border transition ${phase === p ? "bg-primary text-primary-foreground border-primary glow" : "border-border hover:border-primary/60"}`}
-            >{p}</button>
-          ))}
+      {/* Auditoría de salud */}
+      <Section icon={<AlertTriangle className="size-4" />} title="Auditoría de salud">
+        <div className={`rounded-lg p-3 text-sm border ${cs === "bad" ? "bg-destructive/15 border-destructive text-destructive" : cs === "warn" ? "bg-warn/15 border-warn/50 text-warn" : "bg-success/10 border-success/40 text-success"}`}>
+          {cs === "bad" && <p className="font-semibold">CERTIFICADO VENCIDO — requiere renovación inmediata.</p>}
+          {cs === "warn" && <p>Certificado próximo a vencer.</p>}
+          {cs === "ok" && <p>Certificado médico vigente.</p>}
+          <p className="text-[11px] opacity-80 mt-0.5">Emitido: {fmtDateAR(a.certificateDate)}</p>
         </div>
+        <button onClick={() => setShowCert(true)} disabled={!a.certificateFile}
+          className="mt-2 w-full bg-secondary hover:bg-secondary/80 disabled:opacity-50 text-sm py-2.5 rounded-lg flex items-center justify-center gap-2">
+          <FileText className="size-4 text-primary" /> 📄 Ver Certificado Médico
+        </button>
+        {!a.certificateFile && <p className="text-[11px] text-muted-foreground mt-1">El atleta aún no subió el archivo del certificado.</p>}
       </Section>
 
-      {/* Gráfico carga mensual */}
+      {/* Carga mensual + Macrociclo integrado */}
       <Section icon={<LineIcon className="size-4" />} title="Carga mensual">
-        <button onClick={() => setShowChart((s) => !s)} className="w-full bg-secondary hover:bg-secondary/80 text-sm py-2 rounded-lg">
-          {showChart ? "Ocultar gráfico" : "Ver progresión de km"}
-        </button>
-        {showChart && (
-          <div className="mt-3 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.015 240)" />
-                <XAxis dataKey="month" stroke="#999" fontSize={11} />
-                <YAxis stroke="#999" fontSize={11} />
-                <Tooltip contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }} />
-                <Bar dataKey="km" fill="oklch(0.92 0.22 145)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.015 240)" />
+              <XAxis dataKey="month" stroke="#999" fontSize={11} />
+              <YAxis stroke="#999" fontSize={11} />
+              <Tooltip contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }} />
+              <Bar dataKey="km" fill="oklch(0.92 0.22 145)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-4 pt-3 border-t border-border">
+          <p className="text-[10px] uppercase tracking-widest text-primary mb-2 flex items-center gap-1"><Activity className="size-3" /> Macrociclo del mes</p>
+          <div className="grid grid-cols-2 gap-2">
+            {PHASES.map((p) => (
+              <button
+                key={p}
+                onClick={() => patch((x) => ({ ...x, macroByMonth: { ...x.macroByMonth, [cm]: p } }))}
+                className={`p-2 rounded-lg text-sm border transition ${phase === p ? "bg-primary text-primary-foreground border-primary glow" : "border-border hover:border-primary/60"}`}
+              >{p}</button>
+            ))}
           </div>
-        )}
+        </div>
       </Section>
 
       {/* Calculadora VAM */}
@@ -223,7 +287,108 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         </div>
         <AddRace onAdd={(r) => patch((x) => ({ ...x, races: [...x.races, r] }))} />
       </Section>
+
+      {/* Cargar entrenamiento */}
+      <AssignTraining onAssign={(date, block) => patch((x) => ({ ...x, trainings: { ...x.trainings, [date]: block } }))} />
+
+      {showCert && a.certificateFile && (
+        <CertModal src={a.certificateFile} onClose={() => setShowCert(false)} />
+      )}
     </div>
+  );
+}
+
+function CertModal({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute -top-10 right-0 text-white"><X className="size-6" /></button>
+        <div className="bg-card border border-primary/40 rounded-2xl p-3">
+          <p className="text-[10px] uppercase tracking-widest text-primary mb-2 text-center">Certificado Médico</p>
+          <img src={src} alt="Certificado médico" className="w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssignTraining({ onAssign }: { onAssign: (date: string, block: TrainingBlock) => void }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [sessionType, setSessionType] = useState<SessionType>("Pasadas");
+  const [microcycle, setMicrocycle] = useState<Microcycle>("Medio");
+  const [zone, setZone] = useState<ZoneKey>("R3");
+  const [ec, setEc] = useState("");
+  const [main, setMain] = useState("");
+  const [vc, setVc] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const save = () => {
+    if (!ec.trim() || !main.trim() || !vc.trim()) { setMsg("Completá los 3 bloques (EC, Principal, VC)."); return; }
+    onAssign(date, { ec, main, vc, zone, sessionType, microcycle });
+    setMsg("✓ Entrenamiento asignado");
+    setEc(""); setMain(""); setVc("");
+    setTimeout(() => setMsg(null), 2200);
+  };
+
+  return (
+    <Section icon={<ClipboardList className="size-4" />} title="Cargar entrenamiento">
+      <div className="grid grid-cols-1 gap-2">
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Fecha</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Tipo de sesión</label>
+            <select value={sessionType} onChange={(e) => setSessionType(e.target.value as SessionType)}
+              className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
+              {SESSIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Microciclo</label>
+            <select value={microcycle} onChange={(e) => setMicrocycle(e.target.value as Microcycle)}
+              className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
+              {MICROS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Zona objetivo</label>
+          <select value={zone} onChange={(e) => setZone(e.target.value as ZoneKey)}
+            className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
+            {(["R0","R1","R2","R3","R4","R5","R6"] as ZoneKey[]).map((z) => <option key={z} value={z}>{z}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-primary">1) Entrada en Calor (EC)</label>
+          <textarea value={ec} onChange={(e) => setEc(e.target.value)} rows={2}
+            placeholder="Ej: 15' trote suave + movilidad + 4x80m progresivos."
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-primary">2) Bloque Principal</label>
+          <textarea value={main} onChange={(e) => setMain(e.target.value)} rows={3}
+            placeholder="Ej: 8 x 1000m en R5 con 2' pausa trote."
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-primary">3) Vuelta a la Calma (VC)</label>
+          <textarea value={vc} onChange={(e) => setVc(e.target.value)} rows={2}
+            placeholder="Ej: 10' trote regenerativo + elongación."
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
+        </div>
+      </div>
+
+      {msg && <p className={`text-xs mt-2 ${msg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{msg}</p>}
+
+      <button onClick={save}
+        className="mt-3 w-full bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
+        <Plus className="size-4" /> Asignar Entrenamiento
+      </button>
+    </Section>
   );
 }
 

@@ -1,6 +1,22 @@
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X } from "lucide-react";
-import { useDB, type Athlete, type Report, certStatus, monthsBetween, activeRace, fmtTime, paceForZone } from "../../lib/atrt-store";
+import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send } from "lucide-react";
+import { useDB, type Athlete, type Report, certStatus, monthsBetween, activeRace, fmtTime, fmtDateAR, paceForZone } from "../../lib/atrt-store";
+
+function waLink(number: string, text: string) {
+  const clean = (number || "").replace(/[^0-9]/g, "");
+  return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
+}
+function reportMessage(athleteId: string, date: string, km: number, timeMin: number, rpe: number) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const link = `${origin}/?role=coach&athleteId=${athleteId}&date=${date}`;
+  return `¡Hola Coach! Te paso el reporte de mi entrenamiento del día ${fmtDateAR(date)}.
+
+🏃‍♂️ Km reales: ${km}
+⏱️ Tiempo total: ${timeMin} min
+📈 RPE (Esfuerzo): ${rpe}/10
+
+🔗 Podés revisar las capturas de pantalla y enlaces adjuntos ingresando directo a mi sesión desde acá: ${link}`;
+}
 
 export function AthleteView({ athleteId }: { athleteId: string }) {
   const [db, update] = useDB();
@@ -22,10 +38,14 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
         <p className="text-sm text-muted-foreground max-w-xs">
           Tu cuenta está suspendida por adeudar 3 meses o más. Contactá al coach para regularizar.
         </p>
-        <a href={`https://wa.me/${db.coach.whatsapp}?text=${encodeURIComponent("Hola Coach, quiero regularizar mi pago.")}`}
-          className="bg-success/20 border border-success text-success px-4 py-2 rounded-lg flex items-center gap-2">
-          <MessageCircle className="size-4" /> Contactar al coach
-        </a>
+        {db.coach.whatsapp ? (
+          <a href={waLink(db.coach.whatsapp, "Hola Coach, quiero regularizar mi pago.")} target="_blank" rel="noreferrer"
+            className="bg-success/20 border border-success text-success px-4 py-2 rounded-lg flex items-center gap-2">
+            <MessageCircle className="size-4" /> Contactar al coach
+          </a>
+        ) : (
+          <p className="text-xs text-muted-foreground">El coach aún no configuró su WhatsApp.</p>
+        )}
       </div>
     );
   }
@@ -132,7 +152,7 @@ function HomeTab({ athlete: a, patch, coachWa }: { athlete: Athlete; patch: (m: 
             <Plus className="size-4" /> Registrar entrenamiento
           </button>
 
-          {report && <ReportCard report={report} />}
+          {report && <ReportCard report={report} athleteId={a.id} coachWa={coachWa} />}
         </div>
       ) : (
         <div className="bg-card border border-border rounded-xl p-6 text-center text-sm text-muted-foreground">
@@ -140,11 +160,17 @@ function HomeTab({ athlete: a, patch, coachWa }: { athlete: Athlete; patch: (m: 
         </div>
       )}
 
-      <a href={`https://wa.me/${coachWa}?text=${encodeURIComponent(`Hola Coach! Soy ${a.name}. Consulta del ${selected}. http://localhost?role=coach&athleteId=${a.id}&date=${selected}`)}`}
-        target="_blank" rel="noreferrer"
-        className="w-full bg-success/20 border border-success text-success font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
-        <MessageCircle className="size-4" /> Hablar con el coach
-      </a>
+      {coachWa ? (
+        <a href={waLink(coachWa, `Hola Coach! Soy ${a.name}. Consulta del ${fmtDateAR(selected)}.`)}
+          target="_blank" rel="noreferrer"
+          className="w-full bg-success/20 border border-success text-success font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+          <MessageCircle className="size-4" /> Hablar con el coach
+        </a>
+      ) : (
+        <div className="w-full bg-secondary/40 border border-border text-muted-foreground text-xs py-3 rounded-xl text-center">
+          El coach aún no configuró su número de WhatsApp.
+        </div>
+      )}
 
       {showReport && (
         <ReportModal
@@ -167,7 +193,7 @@ function Block({ icon, title, body, primary }: { icon: React.ReactNode; title: s
   );
 }
 
-function ReportCard({ report }: { report: Report }) {
+function ReportCard({ report, athleteId, coachWa }: { report: Report; athleteId: string; coachWa: string }) {
   return (
     <div className="bg-success/10 border border-success/40 rounded-xl p-3 space-y-2">
       <p className="text-xs uppercase tracking-widest text-success">Entrenamiento reportado</p>
@@ -193,6 +219,13 @@ function ReportCard({ report }: { report: Report }) {
         </div>
       )}
       {report.notes && <p className="text-xs text-muted-foreground italic">"{report.notes}"</p>}
+      {coachWa && (
+        <a href={waLink(coachWa, reportMessage(athleteId, report.date, report.km, report.timeMin, report.rpe))}
+          target="_blank" rel="noreferrer"
+          className="mt-1 w-full bg-success text-primary-foreground font-semibold py-2 rounded-lg flex items-center justify-center gap-2 text-sm">
+          <Send className="size-4" /> Enviar reporte por WhatsApp
+        </a>
+      )}
     </div>
   );
 }
@@ -299,10 +332,47 @@ function ProfileTab({ athlete: a, patch }: { athlete: Athlete; patch: (m: (a: At
         </div>
       </section>
 
-      <section className="bg-card border border-border rounded-2xl p-4">
-        <h3 className="text-xs uppercase tracking-widest text-primary mb-2">Certificado médico</h3>
-        <input type="date" value={a.certificateDate} onChange={(e) => patch((x) => ({ ...x, certificateDate: e.target.value }))}
-          className="w-full bg-input border border-border rounded px-2 py-2 text-sm" />
+      <section className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <h3 className="text-xs uppercase tracking-widest text-primary">Datos personales</h3>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">DNI *</label>
+          <input value={a.dni} onChange={(e) => patch((x) => ({ ...x, dni: e.target.value }))}
+            placeholder="00.000.000" required
+            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm font-mono" />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Fecha de nacimiento *</label>
+          <input type="date" value={a.birthDate} onChange={(e) => patch((x) => ({ ...x, birthDate: e.target.value }))} required
+            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm" />
+        </div>
+      </section>
+
+      <section className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <h3 className="text-xs uppercase tracking-widest text-primary">Certificado médico</h3>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Fecha de emisión</label>
+          <input type="date" value={a.certificateDate} onChange={(e) => patch((x) => ({ ...x, certificateDate: e.target.value }))}
+            className="w-full mt-1 bg-input border border-border rounded-lg px-2 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Archivo o foto del certificado</label>
+          <label className="mt-1 w-full border-2 border-dashed border-border rounded-lg py-3 text-sm flex items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary cursor-pointer">
+            <Upload className="size-4" /> Subir foto o archivo del Certificado Médico
+            <input type="file" accept="image/*" hidden onChange={(e) => {
+              const f = e.target.files?.[0]; if (!f) return;
+              const r = new FileReader();
+              r.onload = () => patch((x) => ({ ...x, certificateFile: r.result as string }));
+              r.readAsDataURL(f);
+            }} />
+          </label>
+          {a.certificateFile && (
+            <div className="mt-2 flex items-center gap-2 bg-secondary/60 rounded-lg p-2">
+              <img src={a.certificateFile} alt="Certificado" className="size-12 rounded object-cover border border-border" />
+              <p className="text-xs text-success flex items-center gap-1"><FileText className="size-3" /> Certificado cargado</p>
+              <button onClick={() => patch((x) => ({ ...x, certificateFile: undefined }))} className="ml-auto text-muted-foreground"><X className="size-4" /></button>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="bg-card border border-border rounded-2xl p-4">
