@@ -312,6 +312,24 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
       {showCert && a.certificateFile && (
         <CertModal src={a.certificateFile} onClose={() => setShowCert(false)} />
       )}
+      {editingRaceId && (() => {
+        const race = a.races.find((r) => r.id === editingRaceId);
+        if (!race) return null;
+        return (
+          <EditRaceModal
+            race={race}
+            onClose={() => setEditingRaceId(null)}
+            onSave={(updated) => {
+              patch((x) => ({ ...x, races: x.races.map((r) => r.id === updated.id ? updated : r) }));
+              setEditingRaceId(null);
+            }}
+            onDelete={() => {
+              patch((x) => ({ ...x, races: x.races.filter((r) => r.id !== editingRaceId) }));
+              setEditingRaceId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
