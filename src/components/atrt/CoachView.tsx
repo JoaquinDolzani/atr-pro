@@ -6,7 +6,7 @@ import {
   CalendarDays, Trash2, ChevronRight,
 } from "lucide-react";
 import {
-  useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock,
+  useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
 } from "../../lib/atrt-store";
 
@@ -132,6 +132,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
   const a = db.athletes.find((x) => x.id === athleteId)!;
   const [showCert, setShowCert] = useState(false);
   const [editVAM, setEditVAM] = useState(false);
+  const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
 
   const patch = (mut: (a: Athlete) => Athlete) => {
     update((d) => ({ ...d, athletes: d.athletes.map((x) => x.id === athleteId ? mut(x) : x) }));
@@ -284,14 +285,17 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           {a.races.map((r) => (
             <div key={r.id} className="flex items-center gap-2 bg-secondary rounded-lg p-2">
               <button
-                onClick={() => patch((x) => ({ ...x, races: x.races.map((rr) => ({ ...rr, active: rr.id === r.id })) }))}
+                onClick={(e) => { e.stopPropagation(); patch((x) => ({ ...x, races: x.races.map((rr) => ({ ...rr, active: rr.id === r.id })) })); }}
                 className={r.active ? "text-primary" : "text-muted-foreground"}
                 title="Marca activa"
               ><Star className={`size-4 ${r.active ? "fill-current" : ""}`} /></button>
-              <div className="flex-1 min-w-0">
+              <button
+                onClick={() => setEditingRaceId(r.id)}
+                className="flex-1 min-w-0 text-left hover:opacity-80 transition"
+              >
                 <p className="text-sm font-medium truncate">{r.name}</p>
                 <p className="text-[10px] text-muted-foreground">{r.date} · {r.distanceKm}km · {fmtTime(r.timeSec)}</p>
-              </div>
+              </button>
             </div>
           ))}
         </div>
@@ -308,6 +312,24 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
       {showCert && a.certificateFile && (
         <CertModal src={a.certificateFile} onClose={() => setShowCert(false)} />
       )}
+      {editingRaceId && (() => {
+        const race = a.races.find((r) => r.id === editingRaceId);
+        if (!race) return null;
+        return (
+          <EditRaceModal
+            race={race}
+            onClose={() => setEditingRaceId(null)}
+            onSave={(updated) => {
+              patch((x) => ({ ...x, races: x.races.map((r) => r.id === updated.id ? updated : r) }));
+              setEditingRaceId(null);
+            }}
+            onDelete={() => {
+              patch((x) => ({ ...x, races: x.races.filter((r) => r.id !== editingRaceId) }));
+              setEditingRaceId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -325,6 +347,78 @@ function CertModal({ src, onClose }: { src: string; onClose: () => void }) {
     </div>
   );
 }
+
+function EditRaceModal({ race, onClose, onSave, onDelete }: {
+  race: Race;
+  onClose: () => void;
+  onSave: (r: Race) => void;
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(race.name);
+  const [date, setDate] = useState(race.date);
+  const [distanceKm, setDistanceKm] = useState(String(race.distanceKm));
+  const [min, setMin] = useState(String(Math.floor(race.timeSec / 60)));
+  const [sec, setSec] = useState(String(race.timeSec % 60));
+
+  const save = () => {
+    const updated: Race = {
+      ...race,
+      name: name.trim() || race.name,
+      date,
+      distanceKm: parseFloat(distanceKm) || race.distanceKm,
+      timeSec: (parseInt(min) || 0) * 60 + (parseInt(sec) || 0),
+    };
+    onSave(updated);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative w-full max-w-md bg-card border border-primary/40 rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-primary">Editar marca</p>
+          <h3 className="text-lg font-bold">{race.active ? "⭐ Marca activa" : "Marca"}</h3>
+        </div>
+        <div className="space-y-2">
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Nombre / Descripción</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Fecha</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Distancia (km)</span>
+            <input type="number" step="0.001" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Minutos</span>
+              <input type="number" value={min} onChange={(e) => setMin(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Segundos</span>
+              <input type="number" value={sec} onChange={(e) => setSec(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+            </label>
+          </div>
+        </div>
+        {race.active && (
+          <p className="text-[11px] text-primary/80">Esta es la marca activa. Al guardar se recalcula la VAM y los ritmos R0–R6.</p>
+        )}
+        <div className="flex gap-2 pt-2">
+          <button onClick={save} className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-semibold flex items-center justify-center gap-1">
+            <Save className="size-4" /> Guardar Cambios
+          </button>
+          <button onClick={onDelete} className="bg-destructive/20 text-destructive border border-destructive/40 rounded-lg px-3 py-2 text-sm flex items-center gap-1">
+            <Trash2 className="size-4" /> Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 type PlannerProps = {
   trainings: Record<string, TrainingBlock>;
