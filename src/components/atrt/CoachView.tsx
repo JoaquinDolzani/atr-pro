@@ -1,26 +1,27 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import {
-  ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, DollarSign,
-  LineChart as LineIcon, Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save,
-  CalendarDays, Trash2, ChevronRight,
+  ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, LineChart as LineIcon,
+  Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save, CalendarDays, Trash2, ChevronRight,
 } from "lucide-react";
 import {
-  useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
-} from "../../lib/atrt-store";
+  type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
+} from "@/lib/atrt-derive";
+import {
+  useAuth, useAthleteList, useAthlete, useCoachSettings, useCoachSettingsMutation, useMutations, signedCertUrl,
+} from "@/lib/atrt-data";
 
 const PHASES: MacroPhase[] = ["General", "Pre-competitivo", "Competitivo", "Transición"];
 const SESSIONS: SessionType[] = ["Pasadas", "Fondo", "Tempo", "Fuerza", "Cuestas"];
 const MICROS: Microcycle[] = ["Bajo", "Medio", "Alto"];
 
 export function CoachView() {
-  const [db, update] = useDB();
+  const list = useAthleteList();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const selected = db.athletes.find((a) => a.id === selectedId) || null;
 
-  if (selected) return <AthleteCard athleteId={selected.id} onBack={() => setSelectedId(null)} />;
+  if (selectedId) return <AthleteCard athleteId={selectedId} onBack={() => setSelectedId(null)} />;
 
   return (
     <div className="space-y-4">
@@ -35,56 +36,67 @@ export function CoachView() {
             <Settings className="size-4 text-primary" />
           </button>
           <div className="text-right text-xs text-muted-foreground">
-            <p>{db.athletes.length} corredores</p>
+            <p>{list.data?.length ?? 0} corredores</p>
             <p className="text-primary">{monthKey()}</p>
           </div>
         </div>
       </header>
 
       <div className="space-y-3">
-        {db.athletes.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setSelectedId(a.id)}
-            className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-base truncate">{a.name}</h3>
-                  <CertDot status={certStatus(a.certificateDate)} />
-                  <PayDot owed={a.monthsOwed} />
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Macro: <span className="text-primary">{a.macroByMonth[monthKey()] || "—"}</span>
-                </p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
-                <p className="font-bold text-primary glow-text">{weekKmFor(a).toFixed(1)} km</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
-                <p className="font-semibold">{monthKm(a)} km</p>
-              </div>
-            </div>
-          </button>
+        {list.isLoading && <p className="text-sm text-muted-foreground">Cargando atletas...</p>}
+        {list.data?.map((a) => (
+          <AthleteRow key={a.id} a={a} onOpen={() => setSelectedId(a.id)} />
         ))}
       </div>
 
-      {showSettings && (
-        <SettingsModal
-          initial={db.coach}
-          onClose={() => setShowSettings(false)}
-          onSave={(coach) => { update((d) => ({ ...d, coach })); setShowSettings(false); }}
-        />
-      )}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
 
-function SettingsModal({ initial, onClose, onSave }: { initial: { name: string; whatsapp: string }; onClose: () => void; onSave: (c: { name: string; whatsapp: string }) => void }) {
-  const [name, setName] = useState(initial.name);
-  const [wa, setWa] = useState(initial.whatsapp);
+function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string }; onOpen: () => void }) {
+  const full = useAthlete(a.id);
+  const cs = certStatus(a.certificateDate);
+  return (
+    <button onClick={onOpen}
+      className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-base truncate">{a.name}</h3>
+            <CertDot status={cs} />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Macro: <span className="text-primary">{full.data?.macroByMonth[monthKey()] || "—"}</span>
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
+          <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
+          <p className="font-semibold">{full.data ? monthKm(full.data) : 0} km</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function SettingsModal({ onClose }: { onClose: () => void }) {
+  const settings = useCoachSettings();
+  const auth = useAuth();
+  const m = useCoachSettingsMutation();
+  const [name, setName] = useState("");
+  const [wa, setWa] = useState("");
+  useEffect(() => {
+    if (settings.data) { setName(settings.data.displayName); setWa(settings.data.whatsapp); }
+  }, [settings.data]);
+
+  const save = async () => {
+    await m.mutateAsync({ coachId: auth.userId!, whatsapp: wa, displayName: name });
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-card border-t sm:border border-border rounded-t-3xl sm:rounded-2xl w-full max-w-md p-5 space-y-4">
@@ -94,19 +106,18 @@ function SettingsModal({ initial, onClose, onSave }: { initial: { name: string; 
         </div>
         <div>
           <label className="text-xs uppercase tracking-widest text-primary">Nombre del entrenador</label>
-          <input value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm" />
+          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm" />
         </div>
         <div>
           <label className="text-xs uppercase tracking-widest text-primary">Número de WhatsApp del entrenador</label>
           <input value={wa} onChange={(e) => setWa(e.target.value.replace(/[^0-9]/g, ""))}
-            placeholder="Ej: 5491133334444 (con código de país, sin +)"
+            placeholder="Ej: 5491133334444"
             className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm font-mono" />
-          <p className="text-[11px] text-muted-foreground mt-1">Se usará en el botón de WhatsApp del atleta para enviar reportes.</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Lo usa el botón de WhatsApp del atleta para enviar reportes.</p>
         </div>
-        <button onClick={() => onSave({ name, whatsapp: wa })}
-          className="w-full bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl glow flex items-center justify-center gap-2">
-          <Save className="size-4" /> Guardar configuración
+        <button onClick={save} disabled={m.isPending}
+          className="w-full bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl glow flex items-center justify-center gap-2 disabled:opacity-60">
+          <Save className="size-4" /> Guardar
         </button>
       </div>
     </div>
@@ -114,44 +125,40 @@ function SettingsModal({ initial, onClose, onSave }: { initial: { name: string; 
 }
 
 function CertDot({ status }: { status: "ok" | "warn" | "bad" }) {
-  const cls = status === "ok" ? "bg-success" : status === "warn" ? "bg-warn" : "bg-destructive";
   const Icon = status === "ok" ? CheckCircle2 : status === "warn" ? AlertTriangle : XCircle;
-  return <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full ${cls}/20 border border-current/40`}>
-    <Icon className={`size-3 ${status === "ok" ? "text-success" : status === "warn" ? "text-warn" : "text-destructive"}`} />
-  </span>;
-}
-function PayDot({ owed }: { owed: number }) {
-  const color = owed === 0 ? "text-success" : owed < 3 ? "text-warn" : "text-destructive";
-  return <span className={`inline-flex items-center gap-0.5 text-[10px] ${color}`}>
-    <DollarSign className="size-3" />{owed > 0 ? owed : "✓"}
-  </span>;
+  const color = status === "ok" ? "text-success" : status === "warn" ? "text-warn" : "text-destructive";
+  return <span className="inline-flex items-center"><Icon className={`size-4 ${color}`} /></span>;
 }
 
 function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => void }) {
-  const [db, update] = useDB();
-  const a = db.athletes.find((x) => x.id === athleteId)!;
+  const q = useAthlete(athleteId);
+  const m = useMutations(athleteId);
   const [showCert, setShowCert] = useState(false);
-  const [editVAM, setEditVAM] = useState(false);
+  const [certUrl, setCertUrl] = useState<string | null>(null);
   const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
-
-  const patch = (mut: (a: Athlete) => Athlete) => {
-    update((d) => ({ ...d, athletes: d.athletes.map((x) => x.id === athleteId ? mut(x) : x) }));
-  };
-
+  const a = q.data;
   const cm = monthKey();
   const [selectedMonth, setSelectedMonth] = useState<string>(cm);
+
+  if (q.isLoading || !a) return <p className="text-sm text-muted-foreground">Cargando...</p>;
+
   const phase = a.macroByMonth[selectedMonth] || "General";
   const zs = zones(a);
   const v = vam(a);
   const ar = activeRace(a);
   const cs = certStatus(a.certificateDate);
 
-  const chartData = useMemo(() => {
-    return Object.entries(a.monthlyKm)
-      .sort(([x], [y]) => x.localeCompare(y))
-      .slice(-8)
-      .map(([k, v]) => ({ month: k.slice(2), km: v, key: k }));
-  }, [a.monthlyKm]);
+  const chartData = Object.entries(a.monthlyKm)
+    .sort(([x], [y]) => x.localeCompare(y))
+    .slice(-8)
+    .map(([k, vv]) => ({ month: k.slice(2), km: vv, key: k }));
+
+  const openCert = async () => {
+    if (!a.certificatePath) return;
+    const url = await signedCertUrl(a.certificatePath);
+    setCertUrl(url);
+    setShowCert(true);
+  };
 
   return (
     <div className="space-y-4 pb-8">
@@ -159,7 +166,6 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <ChevronLeft className="size-4" /> Volver
       </button>
 
-      {/* Cabecera: datos personales */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
@@ -168,7 +174,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
             <p className="text-xs text-muted-foreground mt-1">DNI <span className="text-foreground">{a.dni || "—"}</span> · Nac. <span className="text-foreground">{fmtDateAR(a.birthDate)}</span></p>
             <p className="text-[11px] text-muted-foreground">{a.email}</p>
           </div>
-          <div className="flex gap-2 shrink-0"><CertDot status={cs} /><PayDot owed={a.monthsOwed} /></div>
+          <CertDot status={cs} />
         </div>
         <div className="grid grid-cols-3 gap-2 mt-4 text-center">
           <Stat label="Semana" value={`${weekKmFor(a).toFixed(1)}km`} />
@@ -177,22 +183,20 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         </div>
       </div>
 
-      {/* Auditoría de salud */}
       <Section icon={<AlertTriangle className="size-4" />} title="Auditoría de salud">
         <div className={`rounded-lg p-3 text-sm border ${cs === "bad" ? "bg-destructive/15 border-destructive text-destructive" : cs === "warn" ? "bg-warn/15 border-warn/50 text-warn" : "bg-success/10 border-success/40 text-success"}`}>
-          {cs === "bad" && <p className="font-semibold">CERTIFICADO VENCIDO — requiere renovación inmediata.</p>}
+          {cs === "bad" && <p className="font-semibold">CERTIFICADO VENCIDO — requiere renovación.</p>}
           {cs === "warn" && <p>Certificado próximo a vencer.</p>}
           {cs === "ok" && <p>Certificado médico vigente.</p>}
           <p className="text-[11px] opacity-80 mt-0.5">Emitido: {fmtDateAR(a.certificateDate)}</p>
         </div>
-        <button onClick={() => setShowCert(true)} disabled={!a.certificateFile}
+        <button onClick={openCert} disabled={!a.certificatePath}
           className="mt-2 w-full bg-secondary hover:bg-secondary/80 disabled:opacity-50 text-sm py-2.5 rounded-lg flex items-center justify-center gap-2">
           <FileText className="size-4 text-primary" /> 📄 Ver Certificado Médico
         </button>
-        {!a.certificateFile && <p className="text-[11px] text-muted-foreground mt-1">El atleta aún no subió el archivo del certificado.</p>}
+        {!a.certificatePath && <p className="text-[11px] text-muted-foreground mt-1">El atleta aún no subió el archivo.</p>}
       </Section>
 
-      {/* Carga mensual + Macrociclo integrado */}
       <Section icon={<LineIcon className="size-4" />} title="Carga mensual">
         <p className="text-[11px] text-muted-foreground mb-1">Tocá una barra para seleccionar el mes y editar su macrociclo.</p>
         <div className="h-56">
@@ -216,9 +220,8 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           </p>
           <div className="grid grid-cols-2 gap-2">
             {PHASES.map((p) => (
-              <button
-                key={p}
-                onClick={() => patch((x) => ({ ...x, macroByMonth: { ...x.macroByMonth, [selectedMonth]: p } }))}
+              <button key={p}
+                onClick={() => m.setMonthlyMacro.mutate({ month: selectedMonth, macro: p })}
                 className={`p-2 rounded-lg text-sm border transition ${phase === p ? "bg-primary text-primary-foreground border-primary glow" : "border-border hover:border-primary/60"}`}
               >{p}</button>
             ))}
@@ -226,30 +229,12 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         </div>
       </Section>
 
-
-      {/* Calculadora VAM */}
       <Section icon={<Activity className="size-4" />} title="Calculadora de intensidades (VAM)">
         {ar ? (
           <div className="text-xs text-muted-foreground mb-2">
             Marca activa: <span className="text-foreground">{ar.distanceKm}km en {fmtTime(ar.timeSec)}</span>
           </div>
         ) : <p className="text-xs text-muted-foreground mb-2">Sin marca activa.</p>}
-        <button onClick={() => setEditVAM((s) => !s)} className="text-xs text-primary mb-2">
-          {editVAM ? "Cerrar edición" : "Editar marca base"}
-        </button>
-        {editVAM && ar && (
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <input type="number" step="0.1" defaultValue={ar.distanceKm} placeholder="km"
-              onBlur={(e) => patch((x) => ({ ...x, races: x.races.map((r) => r.id === ar.id ? { ...r, distanceKm: +e.target.value } : r) }))}
-              className="bg-input border border-border rounded px-2 py-1 text-sm" />
-            <input type="number" defaultValue={Math.floor(ar.timeSec / 60)} placeholder="min"
-              onBlur={(e) => patch((x) => ({ ...x, races: x.races.map((r) => r.id === ar.id ? { ...r, timeSec: +e.target.value * 60 + (ar.timeSec % 60) } : r) }))}
-              className="bg-input border border-border rounded px-2 py-1 text-sm" />
-            <input type="number" defaultValue={ar.timeSec % 60} placeholder="seg"
-              onBlur={(e) => patch((x) => ({ ...x, races: x.races.map((r) => r.id === ar.id ? { ...r, timeSec: Math.floor(ar.timeSec / 60) * 60 + +e.target.value } : r) }))}
-              className="bg-input border border-border rounded px-2 py-1 text-sm" />
-          </div>
-        )}
         {zs && (
           <div className="grid grid-cols-2 gap-2">
             {(Object.keys(zs) as ZoneKey[]).map((k) => (
@@ -265,112 +250,67 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         )}
       </Section>
 
-      {/* Pagos */}
-      <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
-        <div className="grid grid-cols-4 gap-2">
-          {[0, 1, 2, 3].map((n) => (
-            <button
-              key={n}
-              onClick={() => patch((x) => ({ ...x, monthsOwed: n as 0 | 1 | 2 | 3 }))}
-              className={`py-2 rounded-lg text-sm border transition ${a.monthsOwed === n ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}
-            >{n === 3 ? "3+" : n}</button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">Meses adeudados. 3+ suspende la cuenta del atleta.</p>
-      </Section>
-
-      {/* Marcas */}
       <Section icon={<Trophy className="size-4" />} title="Registro de marcas">
         <div className="space-y-2">
           {a.races.map((r) => (
             <div key={r.id} className="flex items-center gap-2 bg-secondary rounded-lg p-2">
               <button
-                onClick={(e) => { e.stopPropagation(); patch((x) => ({ ...x, races: x.races.map((rr) => ({ ...rr, active: rr.id === r.id })) })); }}
-                className={r.active ? "text-primary" : "text-muted-foreground"}
-                title="Marca activa"
-              ><Star className={`size-4 ${r.active ? "fill-current" : ""}`} /></button>
-              <button
-                onClick={() => setEditingRaceId(r.id)}
-                className="flex-1 min-w-0 text-left hover:opacity-80 transition"
-              >
+                onClick={(e) => { e.stopPropagation(); m.setActiveRace.mutate(r.id); }}
+                className={r.active ? "text-primary" : "text-muted-foreground"} title="Marca activa">
+                <Star className={`size-4 ${r.active ? "fill-current" : ""}`} />
+              </button>
+              <button onClick={() => setEditingRaceId(r.id)} className="flex-1 min-w-0 text-left hover:opacity-80 transition">
                 <p className="text-sm font-medium truncate">{r.name}</p>
                 <p className="text-[10px] text-muted-foreground">{r.date} · {r.distanceKm}km · {fmtTime(r.timeSec)}</p>
               </button>
             </div>
           ))}
         </div>
-        <AddRace onAdd={(r) => patch((x) => ({ ...x, races: [...x.races, r] }))} />
+        <AddRace onAdd={(r) => m.addRace.mutate(r)} />
       </Section>
 
-      {/* Cargar entrenamiento */}
       <TrainingPlanner
         trainings={a.trainings}
-        onSave={(date, block) => patch((x) => ({ ...x, trainings: { ...x.trainings, [date]: block } }))}
-        onDelete={(date) => patch((x) => { const t = { ...x.trainings }; delete t[date]; return { ...x, trainings: t }; })}
+        onSave={(date, block) => m.upsertTraining.mutate({ date, block })}
+        onDelete={(date) => m.deleteTraining.mutate(date)}
       />
 
-      {showCert && a.certificateFile && (
-        <CertModal src={a.certificateFile} onClose={() => setShowCert(false)} />
+      {showCert && certUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setShowCert(false)}>
+          <div className="relative max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowCert(false)} className="absolute -top-10 right-0 text-white"><X className="size-6" /></button>
+            <div className="bg-card border border-primary/40 rounded-2xl p-3">
+              <p className="text-[10px] uppercase tracking-widest text-primary mb-2 text-center">Certificado Médico</p>
+              <img src={certUrl} alt="Certificado médico" className="w-full rounded-lg" />
+            </div>
+          </div>
+        </div>
       )}
+
       {editingRaceId && (() => {
         const race = a.races.find((r) => r.id === editingRaceId);
         if (!race) return null;
         return (
-          <EditRaceModal
-            race={race}
-            onClose={() => setEditingRaceId(null)}
-            onSave={(updated) => {
-              patch((x) => ({ ...x, races: x.races.map((r) => r.id === updated.id ? updated : r) }));
-              setEditingRaceId(null);
-            }}
-            onDelete={() => {
-              patch((x) => ({ ...x, races: x.races.filter((r) => r.id !== editingRaceId) }));
-              setEditingRaceId(null);
-            }}
-          />
+          <EditRaceModal race={race} onClose={() => setEditingRaceId(null)}
+            onSave={async (u) => { await m.updateRace.mutateAsync(u); setEditingRaceId(null); }}
+            onDelete={async () => { await m.deleteRace.mutateAsync(editingRaceId); setEditingRaceId(null); }} />
         );
       })()}
     </div>
   );
 }
 
-function CertModal({ src, onClose }: { src: string; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white"><X className="size-6" /></button>
-        <div className="bg-card border border-primary/40 rounded-2xl p-3">
-          <p className="text-[10px] uppercase tracking-widest text-primary mb-2 text-center">Certificado Médico</p>
-          <img src={src} alt="Certificado médico" className="w-full rounded-lg" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EditRaceModal({ race, onClose, onSave, onDelete }: {
-  race: Race;
-  onClose: () => void;
-  onSave: (r: Race) => void;
-  onDelete: () => void;
-}) {
+function EditRaceModal({ race, onClose, onSave, onDelete }: { race: Race; onClose: () => void; onSave: (r: Race) => void; onDelete: () => void }) {
   const [name, setName] = useState(race.name);
   const [date, setDate] = useState(race.date);
   const [distanceKm, setDistanceKm] = useState(String(race.distanceKm));
   const [min, setMin] = useState(String(Math.floor(race.timeSec / 60)));
   const [sec, setSec] = useState(String(race.timeSec % 60));
-
-  const save = () => {
-    const updated: Race = {
-      ...race,
-      name: name.trim() || race.name,
-      date,
-      distanceKm: parseFloat(distanceKm) || race.distanceKm,
-      timeSec: (parseInt(min) || 0) * 60 + (parseInt(sec) || 0),
-    };
-    onSave(updated);
-  };
-
+  const save = () => onSave({
+    ...race, name: name.trim() || race.name, date,
+    distanceKm: parseFloat(distanceKm) || race.distanceKm,
+    timeSec: (parseInt(min) || 0) * 60 + (parseInt(sec) || 0),
+  });
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
       <div className="relative w-full max-w-md bg-card border border-primary/40 rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
@@ -379,36 +319,22 @@ function EditRaceModal({ race, onClose, onSave, onDelete }: {
           <p className="text-[10px] uppercase tracking-widest text-primary">Editar marca</p>
           <h3 className="text-lg font-bold">{race.active ? "⭐ Marca activa" : "Marca"}</h3>
         </div>
-        <div className="space-y-2">
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Nombre / Descripción</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Fecha</span>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Distancia (km)</span>
-            <input type="number" step="0.001" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="text-xs text-muted-foreground">Minutos</span>
-              <input type="number" value={min} onChange={(e) => setMin(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
-            </label>
-            <label className="block">
-              <span className="text-xs text-muted-foreground">Segundos</span>
-              <input type="number" value={sec} onChange={(e) => setSec(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
-            </label>
-          </div>
+        <label className="block"><span className="text-xs text-muted-foreground">Nombre</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" /></label>
+        <label className="block"><span className="text-xs text-muted-foreground">Fecha</span>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" /></label>
+        <label className="block"><span className="text-xs text-muted-foreground">Distancia (km)</span>
+          <input type="number" step="0.001" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" /></label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block"><span className="text-xs text-muted-foreground">Minutos</span>
+            <input type="number" value={min} onChange={(e) => setMin(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" /></label>
+          <label className="block"><span className="text-xs text-muted-foreground">Segundos</span>
+            <input type="number" value={sec} onChange={(e) => setSec(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" /></label>
         </div>
-        {race.active && (
-          <p className="text-[11px] text-primary/80">Esta es la marca activa. Al guardar se recalcula la VAM y los ritmos R0–R6.</p>
-        )}
+        {race.active && <p className="text-[11px] text-primary/80">Al guardar se recalcula la VAM y los ritmos R0–R6.</p>}
         <div className="flex gap-2 pt-2">
           <button onClick={save} className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-semibold flex items-center justify-center gap-1">
-            <Save className="size-4" /> Guardar Cambios
+            <Save className="size-4" /> Guardar
           </button>
           <button onClick={onDelete} className="bg-destructive/20 text-destructive border border-destructive/40 rounded-lg px-3 py-2 text-sm flex items-center gap-1">
             <Trash2 className="size-4" /> Eliminar
@@ -419,46 +345,36 @@ function EditRaceModal({ race, onClose, onSave, onDelete }: {
   );
 }
 
-
-type PlannerProps = {
-  trainings: Record<string, TrainingBlock>;
-  onSave: (date: string, block: TrainingBlock) => void;
-  onDelete: (date: string) => void;
-};
-
-const EMPTY_BLOCK: TrainingBlock = {
-  ec: "", main: "", vc: "", zone: "R3",
-  sessionType: "Pasadas", microcycle: "Medio", plannedKm: 0,
-};
-
-function toIso(d: Date) { return d.toISOString().slice(0, 10); }
-
+// ============== PLANNER ==============
+const EMPTY_BLOCK: TrainingBlock = { ec: "", main: "", vc: "", zone: "R3", sessionType: "Pasadas", microcycle: "Medio", plannedKm: 0 };
+function toIso(d: Date) {
+  const y = d.getFullYear(); const m = (d.getMonth() + 1).toString().padStart(2, "0"); const day = d.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 function buildMonthWeeks(viewMonth: Date) {
   const first = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
-  const startOffset = first.getDay(); // 0=Dom
-  const start = new Date(first); start.setDate(first.getDate() - startOffset);
+  const start = new Date(first); start.setDate(first.getDate() - first.getDay());
   const weeks: Date[][] = [];
   const cursor = new Date(start);
   for (let w = 0; w < 6; w++) {
     const row: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      row.push(new Date(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
+    for (let i = 0; i < 7; i++) { row.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
     weeks.push(row);
-    // si ya pasamos completamente al siguiente mes y no es la primera fila, cortamos
     if (row[6].getMonth() !== viewMonth.getMonth() && row[0].getMonth() !== viewMonth.getMonth()) break;
   }
   return weeks;
 }
 
-function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
+function TrainingPlanner({ trainings, onSave, onDelete }: {
+  trainings: Record<string, TrainingBlock>;
+  onSave: (date: string, block: TrainingBlock) => void;
+  onDelete: (date: string) => void;
+}) {
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState<string>(toIso(today));
-  const [form, setForm] = useState<TrainingBlock>(() => trainings[toIso(today)] || EMPTY_BLOCK);
+  const [selectedDate, setSelectedDate] = useState(toIso(today));
+  const [form, setForm] = useState<TrainingBlock>(trainings[toIso(today)] || EMPTY_BLOCK);
   const [msg, setMsg] = useState<string | null>(null);
-
   const isEdit = !!trainings[selectedDate];
 
   const selectDay = (d: Date) => {
@@ -471,36 +387,27 @@ function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
   const weeks = useMemo(() => buildMonthWeeks(viewMonth), [viewMonth]);
 
   const save = () => {
-    if (!form.ec.trim() || !form.main.trim() || !form.vc.trim()) {
-      setMsg("Completá los 3 bloques (EC, Principal, VC)."); return;
-    }
+    if (!form.ec.trim() || !form.main.trim() || !form.vc.trim()) { setMsg("Completá EC, Principal y VC."); return; }
     onSave(selectedDate, form);
     setMsg(isEdit ? "✓ Cambios guardados" : "✓ Sesión asignada");
     setTimeout(() => setMsg(null), 2000);
   };
-
   const remove = () => {
     if (!isEdit) return;
-    onDelete(selectedDate);
-    setForm(EMPTY_BLOCK);
-    setMsg("🗑️ Sesión eliminada");
-    setTimeout(() => setMsg(null), 2000);
+    onDelete(selectedDate); setForm(EMPTY_BLOCK);
+    setMsg("🗑️ Sesión eliminada"); setTimeout(() => setMsg(null), 2000);
   };
-
-  const monthLabel = viewMonth.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
 
   return (
     <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
-      {/* Calendario */}
       <div className="bg-secondary/40 rounded-xl p-3">
         <div className="flex items-center justify-between mb-2">
-          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
-            className="p-1 rounded hover:bg-secondary"><ChevronLeft className="size-4" /></button>
+          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
           <p className="text-sm font-semibold flex items-center gap-1 capitalize">
-            <CalendarDays className="size-4 text-primary" />{monthLabel}
+            <CalendarDays className="size-4 text-primary" />
+            {viewMonth.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
           </p>
-          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
-            className="p-1 rounded hover:bg-secondary"><ChevronRight className="size-4" /></button>
+          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <div>
@@ -545,13 +452,10 @@ function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
         </div>
       </div>
 
-      {/* Formulario */}
       <div className="mt-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-widest text-primary">
-            {isEdit ? "Editando sesión" : "Nueva sesión"} · <span className="text-foreground">{fmtDateAR(selectedDate)}</span>
-          </p>
-        </div>
+        <p className="text-[10px] uppercase tracking-widest text-primary">
+          {isEdit ? "Editando sesión" : "Nueva sesión"} · <span className="text-foreground">{fmtDateAR(selectedDate)}</span>
+        </p>
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Tipo</label>
@@ -564,7 +468,7 @@ function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Microciclo</label>
             <select value={form.microcycle} onChange={(e) => setForm({ ...form, microcycle: e.target.value as Microcycle })}
               className="w-full bg-input border border-border rounded-lg px-2 py-2 text-sm mt-1">
-              {MICROS.map((m) => <option key={m} value={m}>{m}</option>)}
+              {MICROS.map((mc) => <option key={mc} value={mc}>{mc}</option>)}
             </select>
           </div>
           <div>
@@ -584,19 +488,16 @@ function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
         <div>
           <label className="text-[10px] uppercase tracking-widest text-primary">1) Entrada en Calor (EC)</label>
           <textarea value={form.ec} onChange={(e) => setForm({ ...form, ec: e.target.value })} rows={2}
-            placeholder="Ej: 15' trote suave + movilidad + 4x80m progresivos."
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-primary">2) Bloque Principal</label>
           <textarea value={form.main} onChange={(e) => setForm({ ...form, main: e.target.value })} rows={3}
-            placeholder="Ej: 8 x 1000m en R5 con 2' pausa trote."
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-primary">3) Vuelta a la Calma (VC)</label>
           <textarea value={form.vc} onChange={(e) => setForm({ ...form, vc: e.target.value })} rows={2}
-            placeholder="Ej: 10' trote regenerativo + elongación."
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm mt-1" />
         </div>
       </div>
@@ -604,13 +505,11 @@ function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
       {msg && <p className={`text-xs mt-2 ${msg.startsWith("✓") ? "text-success" : msg.startsWith("🗑️") ? "text-warn" : "text-destructive"}`}>{msg}</p>}
 
       <div className="mt-3 flex gap-2">
-        <button onClick={save}
-          className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
-          {isEdit ? <><Save className="size-4" /> 💾 Guardar Cambios</> : <><Plus className="size-4" /> + Asignar</>}
+        <button onClick={save} className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
+          {isEdit ? <><Save className="size-4" /> 💾 Guardar Cambios</> : <><Plus className="size-4" /> + Asignar Entrenamiento</>}
         </button>
         {isEdit && (
-          <button onClick={remove}
-            className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
+          <button onClick={remove} className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
             <Trash2 className="size-4" /> Eliminar
           </button>
         )}
@@ -618,7 +517,6 @@ function TrainingPlanner({ trainings, onSave, onDelete }: PlannerProps) {
     </Section>
   );
 }
-
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -628,7 +526,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <section className="bg-card border border-border rounded-2xl p-4">
@@ -638,7 +535,7 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-function AddRace({ onAdd }: { onAdd: (r: import("../../lib/atrt-store").Race) => void }) {
+function AddRace({ onAdd }: { onAdd: (r: { date: string; name: string; distanceKm: number; timeSec: number }) => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ date: "", name: "", distanceKm: 10, min: 0, sec: 0 });
   if (!open) return <button onClick={() => setOpen(true)} className="mt-2 flex items-center gap-1 text-primary text-xs"><Plus className="size-3" /> Agregar marca</button>;
@@ -652,7 +549,8 @@ function AddRace({ onAdd }: { onAdd: (r: import("../../lib/atrt-store").Race) =>
         <input type="number" value={form.sec} onChange={(e) => setForm({ ...form, sec: +e.target.value })} placeholder="seg" className="bg-input border border-border rounded px-2 py-1 text-sm" />
       </div>
       <div className="flex gap-2">
-        <button onClick={() => { onAdd({ id: crypto.randomUUID(), date: form.date, name: form.name, distanceKm: form.distanceKm, timeSec: form.min * 60 + form.sec }); setOpen(false); }} className="flex-1 bg-primary text-primary-foreground rounded py-1.5 text-sm font-semibold">Guardar</button>
+        <button onClick={() => { onAdd({ date: form.date || new Date().toISOString().slice(0,10), name: form.name || "Marca", distanceKm: form.distanceKm, timeSec: form.min * 60 + form.sec }); setOpen(false); }}
+          className="flex-1 bg-primary text-primary-foreground rounded py-1.5 text-sm font-semibold">Guardar</button>
         <button onClick={() => setOpen(false)} className="px-3 bg-secondary rounded py-1.5 text-sm">Cancelar</button>
       </div>
     </div>
