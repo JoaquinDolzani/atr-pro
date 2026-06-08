@@ -28,6 +28,8 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
   const settings = useCoachSettings();
   const m = useMutations(athleteId);
   const [tab, setTab] = useState<"home" | "profile">("home");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   if (q.isLoading || !q.data) return <p className="text-sm text-muted-foreground">Cargando...</p>;
   const a = q.data;
