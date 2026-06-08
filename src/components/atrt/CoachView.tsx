@@ -88,7 +88,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const m = useCoachSettingsMutation();
   const [name, setName] = useState("");
   const [wa, setWa] = useState("");
-  useMemo(() => {
+  useEffect(() => {
     if (settings.data) { setName(settings.data.displayName); setWa(settings.data.whatsapp); }
   }, [settings.data]);
 
