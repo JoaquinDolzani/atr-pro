@@ -41,6 +41,7 @@ function Index() {
   }
 
   const athleteId = (() => {
+    if (!auth.isCoach) return auth.userId;
     if (typeof window === "undefined") return auth.userId;
     const p = new URLSearchParams(window.location.search);
     return p.get("athleteId") || auth.userId;
