@@ -348,6 +348,78 @@ function CertModal({ src, onClose }: { src: string; onClose: () => void }) {
   );
 }
 
+function EditRaceModal({ race, onClose, onSave, onDelete }: {
+  race: Race;
+  onClose: () => void;
+  onSave: (r: Race) => void;
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(race.name);
+  const [date, setDate] = useState(race.date);
+  const [distanceKm, setDistanceKm] = useState(String(race.distanceKm));
+  const [min, setMin] = useState(String(Math.floor(race.timeSec / 60)));
+  const [sec, setSec] = useState(String(race.timeSec % 60));
+
+  const save = () => {
+    const updated: Race = {
+      ...race,
+      name: name.trim() || race.name,
+      date,
+      distanceKm: parseFloat(distanceKm) || race.distanceKm,
+      timeSec: (parseInt(min) || 0) * 60 + (parseInt(sec) || 0),
+    };
+    onSave(updated);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative w-full max-w-md bg-card border border-primary/40 rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-primary">Editar marca</p>
+          <h3 className="text-lg font-bold">{race.active ? "⭐ Marca activa" : "Marca"}</h3>
+        </div>
+        <div className="space-y-2">
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Nombre / Descripción</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Fecha</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Distancia (km)</span>
+            <input type="number" step="0.001" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Minutos</span>
+              <input type="number" value={min} onChange={(e) => setMin(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Segundos</span>
+              <input type="number" value={sec} onChange={(e) => setSec(e.target.value)} className="w-full bg-secondary rounded-lg px-3 py-2 text-sm mt-1" />
+            </label>
+          </div>
+        </div>
+        {race.active && (
+          <p className="text-[11px] text-primary/80">Esta es la marca activa. Al guardar se recalcula la VAM y los ritmos R0–R6.</p>
+        )}
+        <div className="flex gap-2 pt-2">
+          <button onClick={save} className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-semibold flex items-center justify-center gap-1">
+            <Save className="size-4" /> Guardar Cambios
+          </button>
+          <button onClick={onDelete} className="bg-destructive/20 text-destructive border border-destructive/40 rounded-lg px-3 py-2 text-sm flex items-center gap-1">
+            <Trash2 className="size-4" /> Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 type PlannerProps = {
   trainings: Record<string, TrainingBlock>;
   onSave: (date: string, block: TrainingBlock) => void;
