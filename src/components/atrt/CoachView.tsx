@@ -285,14 +285,17 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           {a.races.map((r) => (
             <div key={r.id} className="flex items-center gap-2 bg-secondary rounded-lg p-2">
               <button
-                onClick={() => patch((x) => ({ ...x, races: x.races.map((rr) => ({ ...rr, active: rr.id === r.id })) }))}
+                onClick={(e) => { e.stopPropagation(); patch((x) => ({ ...x, races: x.races.map((rr) => ({ ...rr, active: rr.id === r.id })) })); }}
                 className={r.active ? "text-primary" : "text-muted-foreground"}
                 title="Marca activa"
               ><Star className={`size-4 ${r.active ? "fill-current" : ""}`} /></button>
-              <div className="flex-1 min-w-0">
+              <button
+                onClick={() => setEditingRaceId(r.id)}
+                className="flex-1 min-w-0 text-left hover:opacity-80 transition"
+              >
                 <p className="text-sm font-medium truncate">{r.name}</p>
                 <p className="text-[10px] text-muted-foreground">{r.date} · {r.distanceKm}km · {fmtTime(r.timeSec)}</p>
-              </div>
+              </button>
             </div>
           ))}
         </div>
