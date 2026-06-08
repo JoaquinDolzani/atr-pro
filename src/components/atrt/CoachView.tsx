@@ -132,6 +132,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
   const a = db.athletes.find((x) => x.id === athleteId)!;
   const [showCert, setShowCert] = useState(false);
   const [editVAM, setEditVAM] = useState(false);
+  const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
 
   const patch = (mut: (a: Athlete) => Athlete) => {
     update((d) => ({ ...d, athletes: d.athletes.map((x) => x.id === athleteId ? mut(x) : x) }));
