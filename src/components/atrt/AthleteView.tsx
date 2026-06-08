@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send } from "lucide-react";
 import {
   certStatus, monthsBetween, activeRace, fmtTime, fmtDateAR, paceForZone,
