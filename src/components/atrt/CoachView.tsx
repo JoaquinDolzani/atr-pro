@@ -6,7 +6,7 @@ import {
   CalendarDays, Trash2, ChevronRight,
 } from "lucide-react";
 import {
-  useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock,
+  useDB, type Athlete, type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
 } from "../../lib/atrt-store";
 
