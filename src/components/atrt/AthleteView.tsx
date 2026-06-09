@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send } from "lucide-react";
+import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send, Camera } from "lucide-react";
 import {
   certStatus, monthsBetween, activeRace, fmtTime, fmtDateAR, paceForZone,
   type Report,
 } from "@/lib/atrt-derive";
-import { useAuth, useAthlete, useCoachSettings, useMutations, uploadCertificate, uploadReportPhoto } from "@/lib/atrt-data";
+import { useAuth, useAthlete, useCoachSettings, useMutations, uploadCertificate, uploadReportPhoto, uploadAvatar, signedAvatarUrl } from "@/lib/atrt-data";
 
 function waLink(number: string, text: string) {
   const clean = (number || "").replace(/[^0-9]/g, "");
@@ -66,6 +66,10 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
         ? <HomeTab a={a} coachWa={coachWa} onSaveReport={(r) => m.upsertReport.mutateAsync(r)} />
         : <ProfileTab a={a} isMine={isMine}
             onUpdate={(p) => m.updateProfile.mutateAsync(p)}
+            onUploadAvatar={async (file) => {
+              const path = await uploadAvatar(athleteId, file);
+              await m.updateProfile.mutateAsync({ avatar_path: path });
+            }}
             onUploadCert={async (file, date) => {
               const path = await uploadCertificate(athleteId, file);
               await m.updateProfile.mutateAsync({ certificate_path: path, certificate_date: date });
@@ -86,14 +90,18 @@ function HomeTab({ a, coachWa, onSaveReport }: {
   const days = useMemo(() => buildCalendar(cursor), [cursor]);
   const training = a.trainings[selected];
   const report = a.reports[selected];
+  const monthLabel = useMemo(
+    () => new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(cursor),
+    [cursor]
+  );
 
   return (
     <div className="space-y-4">
       <section className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="text-primary px-2">‹</button>
-          <h3 className="font-semibold text-sm flex items-center gap-2"><CalIcon className="size-4 text-primary" />
-            {cursor.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+          <h3 key={cursor.getTime()} className="font-semibold text-sm flex items-center gap-2 capitalize"><CalIcon className="size-4 text-primary" />
+            {monthLabel}
           </h3>
           <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="text-primary px-2">›</button>
         </div>
@@ -301,11 +309,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div><label className="text-[10px] text-muted-foreground">{label}</label>{children}</div>;
 }
 
-function ProfileTab({ a, isMine, onUpdate, onUploadCert }: {
+function ProfileTab({ a, isMine, onUpdate, onUploadCert, onUploadAvatar }: {
   a: ReturnType<typeof useAthlete>["data"] & object;
   isMine: boolean;
   onUpdate: (p: Partial<{ full_name: string; dni: string; birth_date: string; objectives: string; certificate_date: string }>) => Promise<void>;
   onUploadCert: (file: File, date: string) => Promise<void>;
+  onUploadAvatar: (file: File) => Promise<void>;
 }) {
   const ar = activeRace(a);
   const [full, setFull] = useState(a.name.replace(/ \(Coach\)$/, ""));
@@ -314,22 +323,56 @@ function ProfileTab({ a, isMine, onUpdate, onUploadCert }: {
   const [obj, setObj] = useState(a.objectives);
   const [certDate, setCertDate] = useState(a.certificateDate);
   const [savedMsg, setSavedMsg] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (a.avatarPath) {
+      signedAvatarUrl(a.avatarPath).then((u) => { if (!cancelled) setAvatarUrl(u); });
+    } else { setAvatarUrl(null); }
+    return () => { cancelled = true; };
+  }, [a.avatarPath]);
 
   const save = async () => {
     await onUpdate({ full_name: full, dni, birth_date: birth, objectives: obj, certificate_date: certDate });
     setSavedMsg("✓ Guardado"); setTimeout(() => setSavedMsg(""), 1500);
   };
 
+  const onAvatarFile = async (f: File | undefined) => {
+    if (!f) return;
+    setUploadingAvatar(true);
+    try { await onUploadAvatar(f); } catch (e) { console.error(e); }
+    finally { setUploadingAvatar(false); }
+  };
+
   return (
     <div className="space-y-4">
       <section className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4">
-        <div className="size-16 rounded-full bg-secondary flex items-center justify-center border-2 border-primary"><User className="size-7 text-primary" /></div>
+        <div className="relative">
+          <div className="size-16 rounded-full bg-secondary flex items-center justify-center border-2 border-primary overflow-hidden">
+            {avatarUrl ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <User className="size-7 text-primary" />}
+          </div>
+          {isMine && (
+            <>
+              <button onClick={() => avatarRef.current?.click()} disabled={uploadingAvatar}
+                className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 border-2 border-card disabled:opacity-60"
+                title="Cambiar foto">
+                <Camera className="size-3" />
+              </button>
+              <input ref={avatarRef} type="file" accept="image/*" hidden onChange={(e) => onAvatarFile(e.target.files?.[0])} />
+            </>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <input value={full} onChange={(e) => setFull(e.target.value)} disabled={!isMine}
             className="w-full bg-transparent text-lg font-bold border-b border-border focus:border-primary outline-none disabled:opacity-70" />
           <p className="text-xs text-muted-foreground mt-1">{a.email}</p>
+          {uploadingAvatar && <p className="text-[10px] text-primary mt-0.5">Subiendo foto...</p>}
         </div>
       </section>
+
 
       <section className="bg-card border border-border rounded-2xl p-4 space-y-3">
         <h3 className="text-xs uppercase tracking-widest text-primary">Datos personales</h3>

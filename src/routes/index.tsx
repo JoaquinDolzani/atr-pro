@@ -25,8 +25,12 @@ function Index() {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) { nav({ to: "/auth" }); return; }
+    // Suspension check (real-time when profile refetches)
+    if (auth.profile && auth.profile.isActive === false && !auth.isCoach) {
+      supabase.auth.signOut().then(() => nav({ to: "/auth", search: { suspended: "1" } }));
+      return;
+    }
     if (auth.profile && !auth.profile.onboardingComplete) { nav({ to: "/onboarding" }); return; }
-    // rol inicial según URL si hay
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search);
       const r = p.get("role");
@@ -34,7 +38,7 @@ function Index() {
       else if (auth.isCoach) setRole("coach");
       else setRole("athlete");
     }
-  }, [auth.loading, auth.userId, auth.profile?.onboardingComplete, auth.isCoach]);
+  }, [auth.loading, auth.userId, auth.profile?.onboardingComplete, auth.profile?.isActive, auth.isCoach, nav]);
 
   if (auth.loading || !auth.userId || !auth.profile?.onboardingComplete) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>;

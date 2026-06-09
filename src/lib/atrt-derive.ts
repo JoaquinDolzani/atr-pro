@@ -34,6 +34,8 @@ export interface Report {
   notes?: string;
 }
 
+export interface Payment { monthKey: string; paid: boolean; }
+
 export interface Athlete {
   id: string;
   name: string;
@@ -42,6 +44,8 @@ export interface Athlete {
   birthDate: string;
   certificateDate: string;
   certificatePath?: string;
+  avatarPath?: string;
+  isActive: boolean;
   objectives: string;
   monthsOwed: 0 | 1 | 2 | 3;
   macroByMonth: Record<string, MacroPhase>;
@@ -49,6 +53,26 @@ export interface Athlete {
   races: Race[];
   trainings: Record<string, TrainingBlock>;
   reports: Record<string, Report>;
+  payments: Record<string, boolean>;
+}
+
+export function lastMonthKeys(n = 6): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  d.setDate(1);
+  for (let i = 0; i < n; i++) {
+    const k = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+    out.unshift(k);
+    d.setMonth(d.getMonth() - 1);
+  }
+  return out;
+}
+
+export function monthLabel(mk: string): string {
+  const [y, m] = mk.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  const s = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export function monthKey(d = new Date()) {

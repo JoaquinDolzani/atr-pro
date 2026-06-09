@@ -3,9 +3,11 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import {
   ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, LineChart as LineIcon,
   Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save, CalendarDays, Trash2, ChevronRight,
+  DollarSign, ShieldOff, ShieldCheck,
 } from "lucide-react";
 import {
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
+  lastMonthKeys, monthLabel,
   type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
 } from "@/lib/atrt-derive";
 import {
@@ -54,17 +56,19 @@ export function CoachView() {
   );
 }
 
-function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string }; onOpen: () => void }) {
+function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean }; onOpen: () => void }) {
   const full = useAthlete(a.id);
   const cs = certStatus(a.certificateDate);
   return (
     <button onClick={onOpen}
-      className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99]">
+      className={`w-full text-left bg-card border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99] ${a.isActive ? "border-border" : "border-destructive/60 opacity-80"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-base truncate">{a.name}</h3>
             <CertDot status={cs} />
+            {!a.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/50">SUSPENDIDO</span>}
+            {a.isActive && !a.paidThisMonth && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn border border-warn/50">ADEUDA</span>}
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -75,7 +79,7 @@ function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string;
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
           <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
-          <p className="font-semibold">{full.data ? monthKm(full.data) : 0} km</p>
+          <p className="font-semibold">{a.monthKm.toFixed(0)} km</p>
         </div>
       </div>
     </button>
@@ -167,12 +171,17 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
       </button>
 
       <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-primary">Ficha técnica</p>
             <h2 className="text-2xl font-bold truncate">{a.name}</h2>
             <p className="text-xs text-muted-foreground mt-1">DNI <span className="text-foreground">{a.dni || "—"}</span> · Nac. <span className="text-foreground">{fmtDateAR(a.birthDate)}</span></p>
             <p className="text-[11px] text-muted-foreground">{a.email}</p>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${a.isActive ? "bg-success/15 text-success border-success/50" : "bg-destructive/15 text-destructive border-destructive/50"}`}>
+                Estado: {a.isActive ? "Activo" : "Suspendido"}
+              </span>
+            </div>
           </div>
           <CertDot status={cs} />
         </div>
@@ -181,6 +190,11 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           <Stat label="Mes" value={`${monthKm(a)}km`} />
           <Stat label="VAM" value={v ? `${v.toFixed(0)} m/min` : "—"} />
         </div>
+        <button
+          onClick={() => m.setActive.mutate(!a.isActive)}
+          className={`mt-3 w-full font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm ${a.isActive ? "bg-warn/20 text-warn border border-warn/50" : "bg-success/20 text-success border border-success/50"}`}>
+          {a.isActive ? <><ShieldOff className="size-4" /> Suspender Acceso</> : <><ShieldCheck className="size-4" /> Reactivar Atleta</>}
+        </button>
       </div>
 
       <Section icon={<AlertTriangle className="size-4" />} title="Auditoría de salud">
@@ -206,7 +220,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
               <XAxis dataKey="month" stroke="#999" fontSize={11} />
               <YAxis stroke="#999" fontSize={11} />
               <Tooltip contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }} />
-              <Bar dataKey="km" radius={[6, 6, 0, 0]} onClick={(d: { key: string }) => setSelectedMonth(d.key)} cursor="pointer">
+              <Bar dataKey="km" radius={[6, 6, 0, 0]} onClick={(d: { payload?: { key?: string } }) => { const k = d?.payload?.key; if (k) setSelectedMonth(k); }} cursor="pointer">
                 {chartData.map((d) => (
                   <Cell key={d.key} fill={d.key === selectedMonth ? "oklch(0.92 0.22 145)" : "oklch(0.55 0.12 145 / 0.55)"} />
                 ))}
@@ -269,9 +283,28 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <AddRace onAdd={(r) => m.addRace.mutate(r)} />
       </Section>
 
+      <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
+        <div className="space-y-1.5">
+          {lastMonthKeys(6).map((mk) => {
+            const paid = !!a.payments[mk];
+            return (
+              <div key={mk} className="flex items-center justify-between bg-secondary/60 rounded-lg p-2">
+                <span className="text-sm capitalize">{monthLabel(mk)}</span>
+                <button
+                  onClick={() => m.setPayment.mutate({ month: mk, paid: !paid })}
+                  className={`text-xs px-3 py-1 rounded-full border font-semibold ${paid ? "bg-success/20 text-success border-success/50" : "bg-warn/20 text-warn border-warn/50"}`}>
+                  {paid ? "✓ Pagado" : "Pendiente"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+
       <TrainingPlanner
         trainings={a.trainings}
-        onSave={(date, block) => m.upsertTraining.mutate({ date, block })}
+        onSave={(date, block) => m.upsertTraining.mutateAsync({ date, block })}
         onDelete={(date) => m.deleteTraining.mutate(date)}
       />
 
@@ -367,7 +400,7 @@ function buildMonthWeeks(viewMonth: Date) {
 
 function TrainingPlanner({ trainings, onSave, onDelete }: {
   trainings: Record<string, TrainingBlock>;
-  onSave: (date: string, block: TrainingBlock) => void;
+  onSave: (date: string, block: TrainingBlock) => void | Promise<unknown>;
   onDelete: (date: string) => void;
 }) {
   const today = new Date();
@@ -386,11 +419,16 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
 
   const weeks = useMemo(() => buildMonthWeeks(viewMonth), [viewMonth]);
 
-  const save = () => {
+  const save = async () => {
     if (!form.ec.trim() || !form.main.trim() || !form.vc.trim()) { setMsg("Completá EC, Principal y VC."); return; }
-    onSave(selectedDate, form);
-    setMsg(isEdit ? "✓ Cambios guardados" : "✓ Sesión asignada");
-    setTimeout(() => setMsg(null), 2000);
+    try {
+      await Promise.resolve(onSave(selectedDate, form));
+      setMsg(isEdit ? "✓ Cambios guardados" : "✓ Sesión asignada");
+    } catch (e) {
+      console.error("save training failed", e);
+      setMsg("Error al guardar: " + (e instanceof Error ? e.message : "intentá de nuevo"));
+    }
+    setTimeout(() => setMsg(null), 3000);
   };
   const remove = () => {
     if (!isEdit) return;
@@ -398,14 +436,19 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
     setMsg("🗑️ Sesión eliminada"); setTimeout(() => setMsg(null), 2000);
   };
 
+  const monthHeader = useMemo(
+    () => new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(viewMonth),
+    [viewMonth]
+  );
+
   return (
     <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
       <div className="bg-secondary/40 rounded-xl p-3">
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
-          <p className="text-sm font-semibold flex items-center gap-1 capitalize">
+          <p key={viewMonth.getTime()} className="text-sm font-semibold flex items-center gap-1 capitalize">
             <CalendarDays className="size-4 text-primary" />
-            {viewMonth.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+            {monthHeader}
           </p>
           <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
         </div>

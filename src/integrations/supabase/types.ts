@@ -59,8 +59,36 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          athlete_id: string
+          month_key: string
+          note: string | null
+          paid: boolean
+          paid_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          athlete_id: string
+          month_key: string
+          note?: string | null
+          paid?: boolean
+          paid_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          athlete_id?: string
+          month_key?: string
+          note?: string | null
+          paid?: boolean
+          paid_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          avatar_path: string | null
           birth_date: string | null
           certificate_date: string | null
           certificate_path: string | null
@@ -69,6 +97,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_active: boolean
           is_coach_self: boolean
           objectives: string | null
           onboarding_complete: boolean
@@ -76,6 +105,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_path?: string | null
           birth_date?: string | null
           certificate_date?: string | null
           certificate_path?: string | null
@@ -84,6 +114,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          is_active?: boolean
           is_coach_self?: boolean
           objectives?: string | null
           onboarding_complete?: boolean
@@ -91,6 +122,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_path?: string | null
           birth_date?: string | null
           certificate_date?: string | null
           certificate_path?: string | null
@@ -99,6 +131,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
           is_coach_self?: boolean
           objectives?: string | null
           onboarding_complete?: boolean
@@ -256,6 +289,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      recalc_monthly_km: {
+        Args: { _athlete: string; _month: string }
+        Returns: undefined
       }
     }
     Enums: {

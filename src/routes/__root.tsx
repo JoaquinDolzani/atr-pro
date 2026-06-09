@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  CatchBoundary,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -116,8 +117,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <CatchBoundary getResetKey={() => "root"} errorComponent={ErrorComponent}>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </CatchBoundary>
     </QueryClientProvider>
   );
 }
