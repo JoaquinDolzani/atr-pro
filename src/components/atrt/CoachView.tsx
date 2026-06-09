@@ -304,7 +304,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
 
       <TrainingPlanner
         trainings={a.trainings}
-        onSave={(date, block) => m.upsertTraining.mutate({ date, block })}
+        onSave={(date, block) => m.upsertTraining.mutateAsync({ date, block })}
         onDelete={(date) => m.deleteTraining.mutate(date)}
       />
 
