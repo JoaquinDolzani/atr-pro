@@ -220,7 +220,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
               <XAxis dataKey="month" stroke="#999" fontSize={11} />
               <YAxis stroke="#999" fontSize={11} />
               <Tooltip contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }} />
-              <Bar dataKey="km" radius={[6, 6, 0, 0]} onClick={(d: { key: string }) => setSelectedMonth(d.key)} cursor="pointer">
+              <Bar dataKey="km" radius={[6, 6, 0, 0]} onClick={(d: { payload?: { key?: string } }) => { const k = d?.payload?.key; if (k) setSelectedMonth(k); }} cursor="pointer">
                 {chartData.map((d) => (
                   <Cell key={d.key} fill={d.key === selectedMonth ? "oklch(0.92 0.22 145)" : "oklch(0.55 0.12 145 / 0.55)"} />
                 ))}
