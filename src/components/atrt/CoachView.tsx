@@ -171,12 +171,17 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
       </button>
 
       <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-primary">Ficha técnica</p>
             <h2 className="text-2xl font-bold truncate">{a.name}</h2>
             <p className="text-xs text-muted-foreground mt-1">DNI <span className="text-foreground">{a.dni || "—"}</span> · Nac. <span className="text-foreground">{fmtDateAR(a.birthDate)}</span></p>
             <p className="text-[11px] text-muted-foreground">{a.email}</p>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${a.isActive ? "bg-success/15 text-success border-success/50" : "bg-destructive/15 text-destructive border-destructive/50"}`}>
+                Estado: {a.isActive ? "Activo" : "Suspendido"}
+              </span>
+            </div>
           </div>
           <CertDot status={cs} />
         </div>
@@ -185,6 +190,11 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           <Stat label="Mes" value={`${monthKm(a)}km`} />
           <Stat label="VAM" value={v ? `${v.toFixed(0)} m/min` : "—"} />
         </div>
+        <button
+          onClick={() => m.setActive.mutate(!a.isActive)}
+          className={`mt-3 w-full font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm ${a.isActive ? "bg-warn/20 text-warn border border-warn/50" : "bg-success/20 text-success border border-success/50"}`}>
+          {a.isActive ? <><ShieldOff className="size-4" /> Suspender Acceso</> : <><ShieldCheck className="size-4" /> Reactivar Atleta</>}
+        </button>
       </div>
 
       <Section icon={<AlertTriangle className="size-4" />} title="Auditoría de salud">
