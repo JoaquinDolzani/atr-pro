@@ -56,17 +56,19 @@ export function CoachView() {
   );
 }
 
-function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string }; onOpen: () => void }) {
+function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean }; onOpen: () => void }) {
   const full = useAthlete(a.id);
   const cs = certStatus(a.certificateDate);
   return (
     <button onClick={onOpen}
-      className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99]">
+      className={`w-full text-left bg-card border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99] ${a.isActive ? "border-border" : "border-destructive/60 opacity-80"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-base truncate">{a.name}</h3>
             <CertDot status={cs} />
+            {!a.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/50">SUSPENDIDO</span>}
+            {a.isActive && !a.paidThisMonth && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn border border-warn/50">ADEUDA</span>}
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -77,7 +79,7 @@ function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string;
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
           <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
-          <p className="font-semibold">{full.data ? monthKm(full.data) : 0} km</p>
+          <p className="font-semibold">{a.monthKm.toFixed(0)} km</p>
         </div>
       </div>
     </button>
