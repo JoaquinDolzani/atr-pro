@@ -419,11 +419,16 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
 
   const weeks = useMemo(() => buildMonthWeeks(viewMonth), [viewMonth]);
 
-  const save = () => {
+  const save = async () => {
     if (!form.ec.trim() || !form.main.trim() || !form.vc.trim()) { setMsg("Completá EC, Principal y VC."); return; }
-    onSave(selectedDate, form);
-    setMsg(isEdit ? "✓ Cambios guardados" : "✓ Sesión asignada");
-    setTimeout(() => setMsg(null), 2000);
+    try {
+      await Promise.resolve(onSave(selectedDate, form));
+      setMsg(isEdit ? "✓ Cambios guardados" : "✓ Sesión asignada");
+    } catch (e) {
+      console.error("save training failed", e);
+      setMsg("Error al guardar: " + (e instanceof Error ? e.message : "intentá de nuevo"));
+    }
+    setTimeout(() => setMsg(null), 3000);
   };
   const remove = () => {
     if (!isEdit) return;
@@ -431,14 +436,19 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
     setMsg("🗑️ Sesión eliminada"); setTimeout(() => setMsg(null), 2000);
   };
 
+  const monthHeader = useMemo(
+    () => new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(viewMonth),
+    [viewMonth]
+  );
+
   return (
     <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
       <div className="bg-secondary/40 rounded-xl p-3">
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
-          <p className="text-sm font-semibold flex items-center gap-1 capitalize">
+          <p key={viewMonth.getTime()} className="text-sm font-semibold flex items-center gap-1 capitalize">
             <CalendarDays className="size-4 text-primary" />
-            {viewMonth.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+            {monthHeader}
           </p>
           <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
         </div>
