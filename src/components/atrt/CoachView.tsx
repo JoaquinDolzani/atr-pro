@@ -3,9 +3,11 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import {
   ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, LineChart as LineIcon,
   Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save, CalendarDays, Trash2, ChevronRight,
+  DollarSign, ShieldOff, ShieldCheck,
 } from "lucide-react";
 import {
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
+  lastMonthKeys, monthLabel,
   type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
 } from "@/lib/atrt-derive";
 import {
