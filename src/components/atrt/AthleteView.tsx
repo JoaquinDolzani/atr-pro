@@ -90,14 +90,18 @@ function HomeTab({ a, coachWa, onSaveReport }: {
   const days = useMemo(() => buildCalendar(cursor), [cursor]);
   const training = a.trainings[selected];
   const report = a.reports[selected];
+  const monthLabel = useMemo(
+    () => new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(cursor),
+    [cursor]
+  );
 
   return (
     <div className="space-y-4">
       <section className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="text-primary px-2">‹</button>
-          <h3 className="font-semibold text-sm flex items-center gap-2"><CalIcon className="size-4 text-primary" />
-            {cursor.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+          <h3 key={cursor.getTime()} className="font-semibold text-sm flex items-center gap-2 capitalize"><CalIcon className="size-4 text-primary" />
+            {monthLabel}
           </h3>
           <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="text-primary px-2">›</button>
         </div>
