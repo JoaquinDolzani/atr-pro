@@ -66,6 +66,10 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
         ? <HomeTab a={a} coachWa={coachWa} onSaveReport={(r) => m.upsertReport.mutateAsync(r)} />
         : <ProfileTab a={a} isMine={isMine}
             onUpdate={(p) => m.updateProfile.mutateAsync(p)}
+            onUploadAvatar={async (file) => {
+              const path = await uploadAvatar(athleteId, file);
+              await m.updateProfile.mutateAsync({ avatar_path: path });
+            }}
             onUploadCert={async (file, date) => {
               const path = await uploadCertificate(athleteId, file);
               await m.updateProfile.mutateAsync({ certificate_path: path, certificate_date: date });
