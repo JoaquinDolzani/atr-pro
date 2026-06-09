@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send } from "lucide-react";
+import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send, Camera } from "lucide-react";
 import {
   certStatus, monthsBetween, activeRace, fmtTime, fmtDateAR, paceForZone,
   type Report,
 } from "@/lib/atrt-derive";
-import { useAuth, useAthlete, useCoachSettings, useMutations, uploadCertificate, uploadReportPhoto } from "@/lib/atrt-data";
+import { useAuth, useAthlete, useCoachSettings, useMutations, uploadCertificate, uploadReportPhoto, uploadAvatar, signedAvatarUrl } from "@/lib/atrt-data";
 
 function waLink(number: string, text: string) {
   const clean = (number || "").replace(/[^0-9]/g, "");
