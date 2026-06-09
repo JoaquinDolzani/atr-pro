@@ -283,6 +283,25 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <AddRace onAdd={(r) => m.addRace.mutate(r)} />
       </Section>
 
+      <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
+        <div className="space-y-1.5">
+          {lastMonthKeys(6).map((mk) => {
+            const paid = !!a.payments[mk];
+            return (
+              <div key={mk} className="flex items-center justify-between bg-secondary/60 rounded-lg p-2">
+                <span className="text-sm capitalize">{monthLabel(mk)}</span>
+                <button
+                  onClick={() => m.setPayment.mutate({ month: mk, paid: !paid })}
+                  className={`text-xs px-3 py-1 rounded-full border font-semibold ${paid ? "bg-success/20 text-success border-success/50" : "bg-warn/20 text-warn border-warn/50"}`}>
+                  {paid ? "✓ Pagado" : "Pendiente"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+
       <TrainingPlanner
         trainings={a.trainings}
         onSave={(date, block) => m.upsertTraining.mutate({ date, block })}
