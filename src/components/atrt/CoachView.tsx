@@ -400,7 +400,7 @@ function buildMonthWeeks(viewMonth: Date) {
 
 function TrainingPlanner({ trainings, onSave, onDelete }: {
   trainings: Record<string, TrainingBlock>;
-  onSave: (date: string, block: TrainingBlock) => void;
+  onSave: (date: string, block: TrainingBlock) => void | Promise<unknown>;
   onDelete: (date: string) => void;
 }) {
   const today = new Date();
