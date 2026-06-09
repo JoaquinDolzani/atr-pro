@@ -1,20 +1,27 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/atrt/Logo";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Ingresar · A Tu Ritmo" }] }),
-  beforeLoad: async () => {
+  beforeLoad: async ({ search }) => {
     if (typeof window === "undefined") return;
+    if ((search as { suspended?: string } | undefined)?.suspended) return;
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/" });
   },
+  validateSearch: (s: Record<string, unknown>) => ({
+    suspended: typeof s.suspended === "string" ? s.suspended : undefined,
+  }),
   component: AuthPage,
 });
 
+const SUSPENDED_MSG = "Tu cuenta se encuentra suspendida. Por favor, comunícate con tu entrenador Joaquín Dolzani para reactivarla.";
+
 function AuthPage() {
   const nav = useNavigate();
+  const { suspended } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
@@ -22,13 +29,25 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (suspended) setErr(SUSPENDED_MSG);
+  }, [suspended]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true); setErr(null);
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pwd });
         if (error) throw error;
+        // Check suspension
+        const { data: prof } = await supabase.from("profiles").select("is_active").eq("id", data.user!.id).maybeSingle();
+        if (prof && prof.is_active === false) {
+          await supabase.auth.signOut();
+          setErr(SUSPENDED_MSG);
+          setBusy(false);
+          return;
+        }
       } else {
         const { error } = await supabase.auth.signUp({
           email, password: pwd,
@@ -79,7 +98,11 @@ function AuthPage() {
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               className="w-full mt-1 bg-input border border-border rounded-lg px-3 py-2 text-sm" />
           </div>
-          {err && <p className="text-xs text-destructive">{err}</p>}
+          {err && (
+            <div className="text-xs text-destructive bg-destructive/10 border border-destructive/40 rounded-lg p-2 leading-snug">
+              {err}
+            </div>
+          )}
           <button disabled={busy} type="submit"
             className="w-full bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl glow disabled:opacity-60">
             {busy ? "..." : mode === "signin" ? "Entrar" : "Crear cuenta"}
