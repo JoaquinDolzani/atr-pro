@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import {
   ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, LineChart as LineIcon,
   Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save, CalendarDays, Trash2, ChevronRight,
-  DollarSign, ShieldOff, ShieldCheck,
+  DollarSign, ShieldOff, ShieldCheck, Search, User, Archive,
 } from "lucide-react";
 import {
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
@@ -11,7 +11,7 @@ import {
   type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
 } from "@/lib/atrt-derive";
 import {
-  useAuth, useAthleteList, useAthlete, useCoachSettings, useCoachSettingsMutation, useMutations, signedCertUrl,
+  useAuth, useAthleteList, useAthlete, useCoachSettings, useCoachSettingsMutation, useMutations, signedCertUrl, signedAvatarUrl,
 } from "@/lib/atrt-data";
 
 const PHASES: MacroPhase[] = ["General", "Pre-competitivo", "Competitivo", "Transición"];
