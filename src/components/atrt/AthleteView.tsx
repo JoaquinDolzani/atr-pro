@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send, Camera } from "lucide-react";
+import { AlertTriangle, XCircle, Calendar as CalIcon, Flame, Wind, Activity, MessageCircle, Plus, Trophy, User, Upload, Link2, X, FileText, Send, Camera, CheckCircle2 } from "lucide-react";
 import {
   certStatus, monthsBetween, activeRace, fmtTime, fmtDateAR, paceForZone,
   type Report,
