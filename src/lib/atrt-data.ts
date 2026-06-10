@@ -105,7 +105,7 @@ export function useAthleteList() {
       if (ids.length === 0) return [];
       const [{ data: profs }, { data: loads }, { data: pays }] = await Promise.all([
         supabase.from("profiles")
-          .select("id, full_name, email, dni, birth_date, certificate_date, is_coach_self, is_active")
+          .select("id, full_name, email, dni, birth_date, certificate_date, is_coach_self, is_active, avatar_path")
           .in("id", ids),
         supabase.from("monthly_loads").select("athlete_id, month_key, km").in("athlete_id", ids),
         supabase.from("payments").select("athlete_id, month_key, paid").in("athlete_id", ids),
@@ -119,17 +119,20 @@ export function useAthleteList() {
       for (const p of pays || []) {
         if (p.month_key === cm) paidByAthlete[p.athlete_id] = !!p.paid;
       }
-      return (profs || []).map((p) => ({
+      const arr = (profs || []).map((p) => ({
         id: p.id,
         name: p.is_coach_self ? `${p.full_name || "Coach"} (Coach)` : (p.full_name || p.email || "Atleta"),
         email: p.email || "",
         dni: p.dni || "",
         birthDate: p.birth_date || "",
         certificateDate: p.certificate_date || "",
+        avatarPath: (p as { avatar_path?: string }).avatar_path || undefined,
         isActive: p.is_active !== false,
         monthKm: kmByAthlete[p.id] || 0,
         paidThisMonth: paidByAthlete[p.id] || false,
       }));
+      arr.sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+      return arr;
     },
   });
 }
