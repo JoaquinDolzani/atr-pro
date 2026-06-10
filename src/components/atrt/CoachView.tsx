@@ -69,7 +69,7 @@ export function CoachView() {
           Activos <span className="text-[10px] opacity-80">({activeCount})</span>
         </button>
         <button onClick={() => setView("archive")}
-          className={`flex-1 py-1.5 rounded-full text-sm transition flex items-center justify-center gap-1.5 ${view === "archive" ? "bg-warn text-warn-foreground font-semibold" : "text-muted-foreground"}`}>
+          className={`flex-1 py-1.5 rounded-full text-sm transition flex items-center justify-center gap-1.5 ${view === "archive" ? "bg-warn text-background font-semibold" : "text-muted-foreground"}`}>
           <Archive className="size-3.5" /> Suspendidos <span className="text-[10px] opacity-80">({archivedCount})</span>
         </button>
       </div>
