@@ -63,7 +63,9 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
       )}
 
       {tab === "home"
-        ? <HomeTab a={a} coachWa={coachWa} onSaveReport={(r) => m.upsertReport.mutateAsync(r)} />
+        ? <HomeTab a={a} coachWa={coachWa}
+            onSaveReport={(r) => m.upsertReport.mutateAsync(r)}
+            onToggleCompleted={(date, completed) => m.setTrainingCompleted.mutateAsync({ date, completed })} />
         : <ProfileTab a={a} isMine={isMine}
             onUpdate={(p) => m.updateProfile.mutateAsync(p)}
             onUploadAvatar={async (file) => {
