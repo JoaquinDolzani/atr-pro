@@ -518,16 +518,20 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
                   {row.map((d) => {
                     const iso = toIso(d);
                     const inMonth = d.getMonth() === viewMonth.getMonth();
-                    const has = !!trainings[iso];
+                    const t = trainings[iso];
+                    const has = !!t;
+                    const done = !!t?.completed;
                     const selected = iso === selectedDate;
                     return (
                       <button key={iso} onClick={() => selectDay(d)}
-                        className={`aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition
+                        className={`relative aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition
                           ${selected ? "bg-primary text-primary-foreground glow font-bold"
+                            : done ? "bg-success/20 border border-success/60 text-foreground"
                             : has ? "bg-primary/20 border border-primary/60 text-foreground"
                             : inMonth ? "bg-card border border-border" : "text-muted-foreground/40"}`}>
                         <span>{d.getDate()}</span>
-                        {has && !selected && <span className="size-1 rounded-full bg-primary mt-0.5" />}
+                        {has && !selected && !done && <span className="size-1 rounded-full bg-primary mt-0.5" />}
+                        {done && <CheckCircle2 className="absolute top-0.5 right-0.5 size-2.5 text-success" />}
                       </button>
                     );
                   })}
