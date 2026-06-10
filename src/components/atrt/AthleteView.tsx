@@ -114,16 +114,19 @@ function HomeTab({ a, coachWa, onSaveReport, onToggleCompleted }: {
         <div className="grid grid-cols-7 gap-1">
           {days.map((d, i) => {
             if (!d) return <div key={i} />;
-            const hasT = !!a.trainings[d.iso];
+            const t = a.trainings[d.iso];
+            const hasT = !!t;
+            const done = !!t?.completed;
             const hasR = !!a.reports[d.iso];
             const isSel = d.iso === selected;
             const isToday = d.iso === new Date().toISOString().slice(0, 10);
             return (
               <button key={i} onClick={() => setSelected(d.iso)}
                 className={`aspect-square rounded-lg text-xs relative flex items-center justify-center transition
-                  ${isSel ? "bg-primary text-primary-foreground font-bold glow" : isToday ? "border border-primary text-primary" : "bg-secondary/40"}`}>
+                  ${isSel ? "bg-primary text-primary-foreground font-bold glow" : done ? "bg-success/20 border border-success/60 text-foreground" : isToday ? "border border-primary text-primary" : "bg-secondary/40"}`}>
                 {d.day}
-                {(hasT || hasR) && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 size-1 rounded-full ${hasR ? "bg-success" : isSel ? "bg-primary-foreground" : "bg-primary"}`} />}
+                {done && !isSel && <CheckCircle2 className="absolute top-0.5 right-0.5 size-2.5 text-success" />}
+                {(hasT || hasR) && !done && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 size-1 rounded-full ${hasR ? "bg-success" : isSel ? "bg-primary-foreground" : "bg-primary"}`} />}
               </button>
             );
           })}
@@ -139,6 +142,18 @@ function HomeTab({ a, coachWa, onSaveReport, onToggleCompleted }: {
           <Block icon={<Flame className="size-4" />} title="Entrada en calor" body={training.ec} />
           <Block icon={<Activity className="size-4" />} title="Bloque principal" body={training.main} primary />
           <Block icon={<Wind className="size-4" />} title="Vuelta a la calma" body={training.vc} />
+
+          <button
+            onClick={() => onToggleCompleted(selected, !training.completed)}
+            className={`w-full font-semibold py-3 rounded-xl flex items-center justify-center gap-2 border transition ${
+              training.completed
+                ? "bg-success/20 text-success border-success/60"
+                : "bg-card border-border hover:border-success/60 hover:text-success"
+            }`}>
+            <CheckCircle2 className={`size-5 ${training.completed ? "fill-current/0" : ""}`} />
+            {training.completed ? "¡Entrenamiento hecho! (tocá para deshacer)" : "Marcar como realizado"}
+          </button>
+
           <button onClick={() => setShowReport(true)}
             className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-xl flex items-center justify-center gap-2 glow">
             <Plus className="size-4" /> Registrar entrenamiento
