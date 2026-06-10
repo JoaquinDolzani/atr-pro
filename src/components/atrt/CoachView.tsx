@@ -22,6 +22,18 @@ export function CoachView() {
   const list = useAthleteList();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<"active" | "archive">("active");
+
+  const filtered = useMemo(() => {
+    const all = list.data || [];
+    const q = query.trim().toLowerCase();
+    const base = view === "active" ? all.filter((a) => a.isActive) : all.filter((a) => !a.isActive);
+    return q ? base.filter((a) => a.name.toLowerCase().includes(q)) : base;
+  }, [list.data, query, view]);
+
+  const activeCount = (list.data || []).filter((a) => a.isActive).length;
+  const archivedCount = (list.data || []).filter((a) => !a.isActive).length;
 
   if (selectedId) return <AthleteCard athleteId={selectedId} onBack={() => setSelectedId(null)} />;
 
@@ -38,15 +50,38 @@ export function CoachView() {
             <Settings className="size-4 text-primary" />
           </button>
           <div className="text-right text-xs text-muted-foreground">
-            <p>{list.data?.length ?? 0} corredores</p>
+            <p>{activeCount} activos</p>
             <p className="text-primary">{monthKey()}</p>
           </div>
         </div>
       </header>
 
+      <div className="relative">
+        <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar atleta por nombre o apellido…"
+          className="w-full bg-input border border-border rounded-full pl-9 pr-3 py-2 text-sm focus:border-primary outline-none" />
+      </div>
+
+      <div className="flex gap-2 bg-card border border-border rounded-full p-1">
+        <button onClick={() => setView("active")}
+          className={`flex-1 py-1.5 rounded-full text-sm transition flex items-center justify-center gap-1.5 ${view === "active" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground"}`}>
+          Activos <span className="text-[10px] opacity-80">({activeCount})</span>
+        </button>
+        <button onClick={() => setView("archive")}
+          className={`flex-1 py-1.5 rounded-full text-sm transition flex items-center justify-center gap-1.5 ${view === "archive" ? "bg-warn text-warn-foreground font-semibold" : "text-muted-foreground"}`}>
+          <Archive className="size-3.5" /> Suspendidos <span className="text-[10px] opacity-80">({archivedCount})</span>
+        </button>
+      </div>
+
       <div className="space-y-3">
         {list.isLoading && <p className="text-sm text-muted-foreground">Cargando atletas...</p>}
-        {list.data?.map((a) => (
+        {!list.isLoading && filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            {view === "active" ? "No hay atletas activos que coincidan." : "No hay atletas suspendidos."}
+          </p>
+        )}
+        {filtered.map((a) => (
           <AthleteRow key={a.id} a={a} onOpen={() => setSelectedId(a.id)} />
         ))}
       </div>
@@ -56,14 +91,33 @@ export function CoachView() {
   );
 }
 
-function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean }; onOpen: () => void }) {
+function AthleteAvatar({ path, name, size = 40 }: { path?: string; name: string; size?: number }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (path) signedAvatarUrl(path).then((u) => { if (alive) setUrl(u); });
+    else setUrl(null);
+    return () => { alive = false; };
+  }, [path]);
+  const initials = name.split(/\s+/).slice(0, 2).map((s) => s[0]?.toUpperCase() || "").join("") || "A";
+  return (
+    <div className="rounded-full border-2 border-primary/60 bg-secondary overflow-hidden flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}>
+      {url ? <img src={url} alt={name} className="w-full h-full object-cover" /> :
+        <span className="text-xs font-bold text-primary">{initials}</span>}
+    </div>
+  );
+}
+
+function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean; avatarPath?: string }; onOpen: () => void }) {
   const full = useAthlete(a.id);
   const cs = certStatus(a.certificateDate);
   return (
     <button onClick={onOpen}
       className={`w-full text-left bg-card border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99] ${a.isActive ? "border-border" : "border-destructive/60 opacity-80"}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-start gap-3">
+        <AthleteAvatar path={a.avatarPath} name={a.name} size={44} />
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-base truncate">{a.name}</h3>
             <CertDot status={cs} />
