@@ -164,7 +164,7 @@ async function fetchAthlete(id: string): Promise<Athlete | null> {
       sessionType: (t.session_type as SessionType) || undefined,
       microcycle: (t.microcycle as Microcycle) || undefined,
       plannedKm: Number(t.planned_km) || 0,
-      completed: !!(t as { completed?: boolean }).completed,
+      completed: !!t.completed,
     };
   }
 
