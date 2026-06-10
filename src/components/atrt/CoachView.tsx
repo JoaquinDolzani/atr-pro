@@ -225,8 +225,9 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
       </button>
 
       <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+        <div className="flex items-start gap-3">
+          <AthleteAvatar path={a.avatarPath} name={a.name} size={64} />
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-widest text-primary">Ficha técnica</p>
             <h2 className="text-2xl font-bold truncate">{a.name}</h2>
             <p className="text-xs text-muted-foreground mt-1">DNI <span className="text-foreground">{a.dni || "—"}</span> · Nac. <span className="text-foreground">{fmtDateAR(a.birthDate)}</span></p>
