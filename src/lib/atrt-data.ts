@@ -261,10 +261,11 @@ export function useMutations(athleteId?: string) {
 
   const upsertTraining = useMutation({
     mutationFn: async ({ date, block }: { date: string; block: TrainingBlock }) => {
-      // Defensive normalization: fixed types matching DB schema
+      // Defensive normalization: enforce YYYY-MM-DD format (mobile date inputs can vary)
+      const normDate = normalizeIsoDate(date);
       const payload = {
         athlete_id: athleteId!,
-        date: String(date), // YYYY-MM-DD
+        date: normDate,
         ec: String(block.ec ?? ""),
         main: String(block.main ?? ""),
         vc: String(block.vc ?? ""),
@@ -281,7 +282,17 @@ export function useMutations(athleteId?: string) {
 
   const deleteTraining = useMutation({
     mutationFn: async (date: string) => {
-      const { error } = await supabase.from("trainings").delete().eq("athlete_id", athleteId!).eq("date", date);
+      const { error } = await supabase.from("trainings").delete().eq("athlete_id", athleteId!).eq("date", normalizeIsoDate(date));
+      if (error) throw error;
+    },
+    onSuccess: inv,
+  });
+
+  const setTrainingCompleted = useMutation({
+    mutationFn: async ({ date, completed }: { date: string; completed: boolean }) => {
+      const { error } = await supabase.from("trainings")
+        .update({ completed, completed_at: completed ? new Date().toISOString() : null } as never)
+        .eq("athlete_id", athleteId!).eq("date", normalizeIsoDate(date));
       if (error) throw error;
     },
     onSuccess: inv,
