@@ -378,7 +378,21 @@ export function useMutations(athleteId?: string) {
     onSuccess: inv,
   });
 
-  return { updateProfile, upsertTraining, deleteTraining, upsertReport, setMonthlyMacro, setPayment, setActive, addRace, updateRace, setActiveRace, deleteRace };
+  return { updateProfile, upsertTraining, deleteTraining, setTrainingCompleted, upsertReport, setMonthlyMacro, setPayment, setActive, addRace, updateRace, setActiveRace, deleteRace };
+}
+
+// Normaliza fechas a YYYY-MM-DD aceptando ISO o DD/MM/YYYY (selectores móviles).
+function normalizeIsoDate(s: string): string {
+  if (!s) return "";
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/.exec(s.trim());
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    if (y.length === 2) y = "20" + y;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return String(s);
 }
 
 export function useCoachSettingsMutation() {
