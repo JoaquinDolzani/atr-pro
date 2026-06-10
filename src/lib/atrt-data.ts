@@ -291,7 +291,7 @@ export function useMutations(athleteId?: string) {
   const setTrainingCompleted = useMutation({
     mutationFn: async ({ date, completed }: { date: string; completed: boolean }) => {
       const { error } = await supabase.from("trainings")
-        .update({ completed, completed_at: completed ? new Date().toISOString() : null } as never)
+        .update({ completed, completed_at: completed ? new Date().toISOString() : null })
         .eq("athlete_id", athleteId!).eq("date", normalizeIsoDate(date));
       if (error) throw error;
     },
