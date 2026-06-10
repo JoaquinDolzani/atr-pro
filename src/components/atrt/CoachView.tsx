@@ -555,8 +555,13 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
       </div>
 
       <div className="mt-4 space-y-2">
-        <p className="text-[10px] uppercase tracking-widest text-primary">
-          {isEdit ? "Editando sesión" : "Nueva sesión"} · <span className="text-foreground">{fmtDateAR(selectedDate)}</span>
+        <p className="text-[10px] uppercase tracking-widest text-primary flex items-center gap-2 flex-wrap">
+          <span>{isEdit ? "Editando sesión" : "Nueva sesión"} · <span className="text-foreground normal-case tracking-normal">{fmtDateAR(selectedDate)}</span></span>
+          {isEdit && form.completed && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/50 text-[10px] normal-case tracking-normal">
+              <CheckCircle2 className="size-3" /> Realizado por el atleta
+            </span>
+          )}
         </p>
         <div className="grid grid-cols-3 gap-2">
           <div>
