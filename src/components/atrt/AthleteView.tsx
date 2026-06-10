@@ -81,10 +81,11 @@ export function AthleteView({ athleteId }: { athleteId: string }) {
   );
 }
 
-function HomeTab({ a, coachWa, onSaveReport }: {
+function HomeTab({ a, coachWa, onSaveReport, onToggleCompleted }: {
   a: ReturnType<typeof useAthlete>["data"] & object;
   coachWa: string;
   onSaveReport: (r: { date: string; km: number; timeMin: number; rpe: number; notes?: string; links: string[]; photos: string[] }) => Promise<void>;
+  onToggleCompleted: (date: string, completed: boolean) => Promise<void>;
 }) {
   const [cursor, setCursor] = useState(new Date());
   const [selected, setSelected] = useState<string>(new Date().toISOString().slice(0, 10));
