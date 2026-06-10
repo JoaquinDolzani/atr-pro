@@ -193,7 +193,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <button
           onClick={() => m.setActive.mutate(!a.isActive)}
           className={`mt-3 w-full font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm ${a.isActive ? "bg-warn/20 text-warn border border-warn/50" : "bg-success/20 text-success border border-success/50"}`}>
-          {a.isActive ? <><ShieldOff className="size-4" /> Suspender Acceso</> : <><ShieldCheck className="size-4" /> Reactivar Atleta</>}
+          {a.isActive ? <><ShieldOff className="size-4" /> Suspender Acceso</> : <><ShieldCheck className="size-4" /> Reactivar Acceso</>}
         </button>
       </div>
 
