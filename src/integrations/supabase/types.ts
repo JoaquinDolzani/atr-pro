@@ -215,6 +215,8 @@ export type Database = {
       trainings: {
         Row: {
           athlete_id: string
+          completed: boolean
+          completed_at: string | null
           created_at: string
           date: string
           ec: string
@@ -229,6 +231,8 @@ export type Database = {
         }
         Insert: {
           athlete_id: string
+          completed?: boolean
+          completed_at?: string | null
           created_at?: string
           date: string
           ec?: string
@@ -243,6 +247,8 @@ export type Database = {
         }
         Update: {
           athlete_id?: string
+          completed?: boolean
+          completed_at?: string | null
           created_at?: string
           date?: string
           ec?: string

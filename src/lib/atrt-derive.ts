@@ -22,6 +22,7 @@ export interface TrainingBlock {
   sessionType?: SessionType;
   microcycle?: Microcycle;
   plannedKm?: number;
+  completed?: boolean;
 }
 
 export interface Report {

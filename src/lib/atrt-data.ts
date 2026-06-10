@@ -105,7 +105,7 @@ export function useAthleteList() {
       if (ids.length === 0) return [];
       const [{ data: profs }, { data: loads }, { data: pays }] = await Promise.all([
         supabase.from("profiles")
-          .select("id, full_name, email, dni, birth_date, certificate_date, is_coach_self, is_active")
+          .select("id, full_name, email, dni, birth_date, certificate_date, is_coach_self, is_active, avatar_path")
           .in("id", ids),
         supabase.from("monthly_loads").select("athlete_id, month_key, km").in("athlete_id", ids),
         supabase.from("payments").select("athlete_id, month_key, paid").in("athlete_id", ids),
@@ -119,17 +119,20 @@ export function useAthleteList() {
       for (const p of pays || []) {
         if (p.month_key === cm) paidByAthlete[p.athlete_id] = !!p.paid;
       }
-      return (profs || []).map((p) => ({
+      const arr = (profs || []).map((p) => ({
         id: p.id,
         name: p.is_coach_self ? `${p.full_name || "Coach"} (Coach)` : (p.full_name || p.email || "Atleta"),
         email: p.email || "",
         dni: p.dni || "",
         birthDate: p.birth_date || "",
         certificateDate: p.certificate_date || "",
+        avatarPath: (p as { avatar_path?: string }).avatar_path || undefined,
         isActive: p.is_active !== false,
         monthKm: kmByAthlete[p.id] || 0,
         paidThisMonth: paidByAthlete[p.id] || false,
       }));
+      arr.sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+      return arr;
     },
   });
 }
@@ -161,6 +164,7 @@ async function fetchAthlete(id: string): Promise<Athlete | null> {
       sessionType: (t.session_type as SessionType) || undefined,
       microcycle: (t.microcycle as Microcycle) || undefined,
       plannedKm: Number(t.planned_km) || 0,
+      completed: !!t.completed,
     };
   }
 
@@ -257,10 +261,11 @@ export function useMutations(athleteId?: string) {
 
   const upsertTraining = useMutation({
     mutationFn: async ({ date, block }: { date: string; block: TrainingBlock }) => {
-      // Defensive normalization: fixed types matching DB schema
+      // Defensive normalization: enforce YYYY-MM-DD format (mobile date inputs can vary)
+      const normDate = normalizeIsoDate(date);
       const payload = {
         athlete_id: athleteId!,
-        date: String(date), // YYYY-MM-DD
+        date: normDate,
         ec: String(block.ec ?? ""),
         main: String(block.main ?? ""),
         vc: String(block.vc ?? ""),
@@ -277,7 +282,17 @@ export function useMutations(athleteId?: string) {
 
   const deleteTraining = useMutation({
     mutationFn: async (date: string) => {
-      const { error } = await supabase.from("trainings").delete().eq("athlete_id", athleteId!).eq("date", date);
+      const { error } = await supabase.from("trainings").delete().eq("athlete_id", athleteId!).eq("date", normalizeIsoDate(date));
+      if (error) throw error;
+    },
+    onSuccess: inv,
+  });
+
+  const setTrainingCompleted = useMutation({
+    mutationFn: async ({ date, completed }: { date: string; completed: boolean }) => {
+      const { error } = await supabase.from("trainings")
+        .update({ completed, completed_at: completed ? new Date().toISOString() : null })
+        .eq("athlete_id", athleteId!).eq("date", normalizeIsoDate(date));
       if (error) throw error;
     },
     onSuccess: inv,
@@ -363,7 +378,21 @@ export function useMutations(athleteId?: string) {
     onSuccess: inv,
   });
 
-  return { updateProfile, upsertTraining, deleteTraining, upsertReport, setMonthlyMacro, setPayment, setActive, addRace, updateRace, setActiveRace, deleteRace };
+  return { updateProfile, upsertTraining, deleteTraining, setTrainingCompleted, upsertReport, setMonthlyMacro, setPayment, setActive, addRace, updateRace, setActiveRace, deleteRace };
+}
+
+// Normaliza fechas a YYYY-MM-DD aceptando ISO o DD/MM/YYYY (selectores móviles).
+function normalizeIsoDate(s: string): string {
+  if (!s) return "";
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/.exec(s.trim());
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    if (y.length === 2) y = "20" + y;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return String(s);
 }
 
 export function useCoachSettingsMutation() {
