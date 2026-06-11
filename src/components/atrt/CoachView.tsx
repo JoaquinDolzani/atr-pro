@@ -85,7 +85,7 @@ export function CoachView() {
           </p>
         )}
         {filtered.map((a) => (
-          <AthleteRow key={a.id} a={a} onOpen={() => setSelectedId(a.id)} />
+          <AthleteRow key={a.id} a={a} onOpen={() => setSelectedId(a.id)} showDelete={view === "archive"} />
         ))}
       </div>
 
