@@ -650,11 +650,11 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
       {msg && <p className={`text-xs mt-2 ${msg.startsWith("✓") ? "text-success" : msg.startsWith("🗑️") ? "text-warn" : "text-destructive"}`}>{msg}</p>}
 
       <div className="mt-3 flex gap-2">
-        <button onClick={save} className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
+        <button type="button" onClick={save} className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
           {isEdit ? <><Save className="size-4" /> 💾 Guardar Cambios</> : <><Plus className="size-4" /> + Asignar Entrenamiento</>}
         </button>
         {isEdit && (
-          <button onClick={remove} className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
+          <button type="button" onClick={remove} className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
             <Trash2 className="size-4" /> Eliminar
           </button>
         )}
