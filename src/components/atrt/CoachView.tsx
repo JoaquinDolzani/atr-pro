@@ -561,7 +561,7 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
                     const done = !!t?.completed;
                     const selected = iso === selectedDate;
                     return (
-                      <button key={iso} onClick={() => selectDay(d)}
+                      <button key={iso} type="button" onClick={() => selectDay(d)}
                         className={`relative aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition
                           ${selected ? "bg-primary text-primary-foreground glow font-bold"
                             : done ? "bg-success/20 border border-success/60 text-foreground"
