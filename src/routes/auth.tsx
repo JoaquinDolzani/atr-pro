@@ -107,6 +107,25 @@ function AuthPage() {
             className="w-full bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl glow disabled:opacity-60">
             {busy ? "..." : mode === "signin" ? "Entrar" : "Crear cuenta"}
           </button>
+          {mode === "signin" && (
+            <button type="button" onClick={async () => {
+              setErr(null);
+              if (!email) { setErr("Ingresá tu email arriba primero."); return; }
+              setBusy(true);
+              try {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                });
+                if (error) throw error;
+                setErr("Te enviamos un correo con el enlace para restablecer la contraseña.");
+              } catch (e) {
+                setErr(e instanceof Error ? e.message : "Error");
+              } finally { setBusy(false); }
+            }}
+              className="block w-full text-center text-xs text-primary hover:underline">
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
         </form>
 
         <p className="text-[11px] text-muted-foreground text-center">
@@ -116,3 +135,4 @@ function AuthPage() {
     </div>
   );
 }
+

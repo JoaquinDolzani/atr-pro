@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import {
   ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, LineChart as LineIcon,
   Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save, CalendarDays, Trash2, ChevronRight,
-  DollarSign, ShieldOff, ShieldCheck, Search, Archive,
+  DollarSign, ShieldOff, ShieldCheck, Search, Archive, Link2, Image as ImgIcon, Target,
 } from "lucide-react";
 import {
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
-  lastMonthKeys, monthLabel,
+  paymentMonthKeys, monthLabel,
   type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
 } from "@/lib/atrt-derive";
 import {
   useAuth, useAthleteList, useAthlete, useCoachSettings, useCoachSettingsMutation, useMutations, signedCertUrl, signedAvatarUrl,
 } from "@/lib/atrt-data";
+import { deleteAthlete } from "@/lib/admin.functions";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PHASES: MacroPhase[] = ["General", "Pre-competitivo", "Competitivo", "Transición"];
 const SESSIONS: SessionType[] = ["Pasadas", "Fondo", "Tempo", "Fuerza", "Cuestas"];
@@ -82,7 +85,7 @@ export function CoachView() {
           </p>
         )}
         {filtered.map((a) => (
-          <AthleteRow key={a.id} a={a} onOpen={() => setSelectedId(a.id)} />
+          <AthleteRow key={a.id} a={a} onOpen={() => setSelectedId(a.id)} showDelete={view === "archive"} />
         ))}
       </div>
 
@@ -109,34 +112,58 @@ function AthleteAvatar({ path, name, size = 40 }: { path?: string; name: string;
   );
 }
 
-function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean; avatarPath?: string }; onOpen: () => void }) {
+function AthleteRow({ a, onOpen, showDelete }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean; avatarPath?: string }; onOpen: () => void; showDelete?: boolean }) {
   const full = useAthlete(a.id);
   const cs = certStatus(a.certificateDate);
+  const qc = useQueryClient();
+  const del = useServerFn(deleteAthlete);
+  const [deleting, setDeleting] = useState(false);
+  const onDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Eliminar DEFINITIVAMENTE a ${a.name} y todo su historial? Esta acción no se puede deshacer.`)) return;
+    setDeleting(true);
+    try {
+      await del({ data: { athleteId: a.id } });
+      await qc.invalidateQueries({ queryKey: ["athletes"] });
+    } catch (err) {
+      alert("No se pudo eliminar: " + (err instanceof Error ? err.message : "error"));
+    } finally { setDeleting(false); }
+  };
   return (
-    <button onClick={onOpen}
-      className={`w-full text-left bg-card border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99] ${a.isActive ? "border-border" : "border-destructive/60 opacity-80"}`}>
-      <div className="flex items-start gap-3">
-        <AthleteAvatar path={a.avatarPath} name={a.name} size={44} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-base truncate">{a.name}</h3>
-            <CertDot status={cs} />
-            {!a.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/50">SUSPENDIDO</span>}
-            {a.isActive && !a.paidThisMonth && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn border border-warn/50">ADEUDA</span>}
+    <div className={`bg-card border rounded-xl ${a.isActive ? "border-border" : "border-destructive/60 opacity-90"}`}>
+      <button type="button" onClick={onOpen}
+        className="w-full text-left p-4 hover:border-primary/60 transition active:scale-[0.99] rounded-xl">
+        <div className="flex items-start gap-3">
+          <AthleteAvatar path={a.avatarPath} name={a.name} size={44} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-base truncate">{a.name}</h3>
+              <CertDot status={cs} />
+              {!a.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/50">SUSPENDIDO</span>}
+              {a.isActive && !a.paidThisMonth && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn border border-warn/50">ADEUDA</span>}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Macro: <span className="text-primary">{full.data?.macroByMonth[monthKey()] || "—"}</span>
+            </p>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Macro: <span className="text-primary">{full.data?.macroByMonth[monthKey()] || "—"}</span>
-          </p>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
+            <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
+            <p className="font-semibold">{a.monthKm.toFixed(0)} km</p>
+          </div>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
-          <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
-          <p className="font-semibold">{a.monthKm.toFixed(0)} km</p>
+      </button>
+      {showDelete && (
+        <div className="px-4 pb-3">
+          <button type="button" onClick={onDelete} disabled={deleting}
+            className="w-full bg-destructive/15 text-destructive border border-destructive/50 rounded-lg py-2 text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+            <Trash2 className="size-3.5" /> {deleting ? "Eliminando..." : "Eliminar definitivamente"}
+          </button>
         </div>
-      </div>
-    </button>
+      )}
+    </div>
   );
 }
 
@@ -338,14 +365,24 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <AddRace onAdd={(r) => m.addRace.mutate(r)} />
       </Section>
 
+      <Section icon={<Target className="size-4" />} title="Objetivos personales del atleta">
+        {a.objectives?.trim() ? (
+          <p className="text-sm whitespace-pre-wrap leading-snug">{a.objectives}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">El atleta aún no cargó sus objetivos en el perfil.</p>
+        )}
+      </Section>
+
+      <ReportsHistory reports={a.reports} />
+
       <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
-        <div className="space-y-1.5">
-          {lastMonthKeys(6).map((mk) => {
+        <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+          {paymentMonthKeys(a.payments).slice().reverse().map((mk) => {
             const paid = !!a.payments[mk];
             return (
               <div key={mk} className="flex items-center justify-between bg-secondary/60 rounded-lg p-2">
                 <span className="text-sm capitalize">{monthLabel(mk)}</span>
-                <button
+                <button type="button"
                   onClick={() => m.setPayment.mutate({ month: mk, paid: !paid })}
                   className={`text-xs px-3 py-1 rounded-full border font-semibold ${paid ? "bg-success/20 text-success border-success/50" : "bg-warn/20 text-warn border-warn/50"}`}>
                   {paid ? "✓ Pagado" : "Pendiente"}
@@ -355,6 +392,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           })}
         </div>
       </Section>
+
 
 
       <TrainingPlanner
@@ -500,12 +538,12 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
     <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
       <div className="bg-secondary/40 rounded-xl p-3">
         <div className="flex items-center justify-between mb-2">
-          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
+          <button type="button" onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
           <p key={viewMonth.getTime()} className="text-sm font-semibold flex items-center gap-1 capitalize">
             <CalendarDays className="size-4 text-primary" />
             {monthHeader}
           </p>
-          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
+          <button type="button" onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <div>
@@ -523,7 +561,7 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
                     const done = !!t?.completed;
                     const selected = iso === selectedDate;
                     return (
-                      <button key={iso} onClick={() => selectDay(d)}
+                      <button key={iso} type="button" onClick={() => selectDay(d)}
                         className={`relative aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition
                           ${selected ? "bg-primary text-primary-foreground glow font-bold"
                             : done ? "bg-success/20 border border-success/60 text-foreground"
@@ -612,11 +650,11 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
       {msg && <p className={`text-xs mt-2 ${msg.startsWith("✓") ? "text-success" : msg.startsWith("🗑️") ? "text-warn" : "text-destructive"}`}>{msg}</p>}
 
       <div className="mt-3 flex gap-2">
-        <button onClick={save} className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
+        <button type="button" onClick={save} className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-xl glow flex items-center justify-center gap-2">
           {isEdit ? <><Save className="size-4" /> 💾 Guardar Cambios</> : <><Plus className="size-4" /> + Asignar Entrenamiento</>}
         </button>
         {isEdit && (
-          <button onClick={remove} className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
+          <button type="button" onClick={remove} className="px-4 bg-destructive/20 text-destructive border border-destructive/50 font-semibold rounded-xl flex items-center justify-center gap-1">
             <Trash2 className="size-4" /> Eliminar
           </button>
         )}
@@ -641,6 +679,66 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
     </section>
   );
 }
+
+
+function ReportPhoto({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(path.startsWith("http") ? path : null);
+  useEffect(() => {
+    let alive = true;
+    if (!path || path.startsWith("http")) return;
+    import("@/integrations/supabase/client").then(({ supabase }) =>
+      supabase.storage.from("report-photos").createSignedUrl(path, 3600).then(({ data }) => {
+        if (alive && data?.signedUrl) setUrl(data.signedUrl);
+      }));
+    return () => { alive = false; };
+  }, [path]);
+  if (!url) return <div className="h-24 w-24 rounded-lg bg-secondary animate-pulse shrink-0" />;
+  return <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto reporte" className="h-24 rounded-lg border border-border" /></a>;
+}
+
+function ReportsHistory({ reports }: { reports: Record<string, import("@/lib/atrt-derive").Report> }) {
+  const items = Object.values(reports).sort((a, b) => b.date.localeCompare(a.date));
+  if (items.length === 0) return null;
+  return (
+    <Section icon={<ClipboardList className="size-4" />} title="Actividades realizadas por el atleta">
+      <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+        {items.map((r) => (
+          <div key={r.date} className="bg-secondary/40 border border-border rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs font-semibold text-primary">{fmtDateAR(r.date)}</p>
+              <div className="flex gap-3 text-xs">
+                <span><span className="text-muted-foreground">KM</span> <b>{r.km}</b></span>
+                <span><span className="text-muted-foreground">Min</span> <b>{r.timeMin}</b></span>
+                <span><span className="text-muted-foreground">RPE</span> <b>{r.rpe}/10</b></span>
+              </div>
+            </div>
+            {r.links?.length > 0 && (
+              <div className="space-y-1">
+                {r.links.map((l, i) => (
+                  <a key={i} href={l} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary truncate hover:underline">
+                    <Link2 className="size-3 shrink-0" /> <span className="truncate">{l}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+            {r.photos?.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {r.photos.map((p, i) => <ReportPhoto key={i} path={p} />)}
+              </div>
+            )}
+            {r.notes && (
+              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-2">"{r.notes}"</p>
+            )}
+            {!r.photos?.length && !r.links?.length && !r.notes && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1"><ImgIcon className="size-3" /> Reporte sin adjuntos.</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 
 function AddRace({ onAdd }: { onAdd: (r: { date: string; name: string; distanceKm: number; timeSec: number }) => void }) {
   const [open, setOpen] = useState(false);
