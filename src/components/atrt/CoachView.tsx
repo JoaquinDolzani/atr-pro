@@ -341,14 +341,24 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         <AddRace onAdd={(r) => m.addRace.mutate(r)} />
       </Section>
 
+      <Section icon={<Target className="size-4" />} title="Objetivos personales del atleta">
+        {a.objectives?.trim() ? (
+          <p className="text-sm whitespace-pre-wrap leading-snug">{a.objectives}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">El atleta aún no cargó sus objetivos en el perfil.</p>
+        )}
+      </Section>
+
+      <ReportsHistory reports={a.reports} />
+
       <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
-        <div className="space-y-1.5">
-          {lastMonthKeys(6).map((mk) => {
+        <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+          {paymentMonthKeys(a.payments).slice().reverse().map((mk) => {
             const paid = !!a.payments[mk];
             return (
               <div key={mk} className="flex items-center justify-between bg-secondary/60 rounded-lg p-2">
                 <span className="text-sm capitalize">{monthLabel(mk)}</span>
-                <button
+                <button type="button"
                   onClick={() => m.setPayment.mutate({ month: mk, paid: !paid })}
                   className={`text-xs px-3 py-1 rounded-full border font-semibold ${paid ? "bg-success/20 text-success border-success/50" : "bg-warn/20 text-warn border-warn/50"}`}>
                   {paid ? "✓ Pagado" : "Pendiente"}
@@ -358,6 +368,7 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
           })}
         </div>
       </Section>
+
 
 
       <TrainingPlanner
