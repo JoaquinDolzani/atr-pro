@@ -112,34 +112,58 @@ function AthleteAvatar({ path, name, size = 40 }: { path?: string; name: string;
   );
 }
 
-function AthleteRow({ a, onOpen }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean; avatarPath?: string }; onOpen: () => void }) {
+function AthleteRow({ a, onOpen, showDelete }: { a: { id: string; name: string; dni: string; birthDate: string; certificateDate: string; isActive: boolean; monthKm: number; paidThisMonth: boolean; avatarPath?: string }; onOpen: () => void; showDelete?: boolean }) {
   const full = useAthlete(a.id);
   const cs = certStatus(a.certificateDate);
+  const qc = useQueryClient();
+  const del = useServerFn(deleteAthlete);
+  const [deleting, setDeleting] = useState(false);
+  const onDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Eliminar DEFINITIVAMENTE a ${a.name} y todo su historial? Esta acción no se puede deshacer.`)) return;
+    setDeleting(true);
+    try {
+      await del({ data: { athleteId: a.id } });
+      await qc.invalidateQueries({ queryKey: ["athletes"] });
+    } catch (err) {
+      alert("No se pudo eliminar: " + (err instanceof Error ? err.message : "error"));
+    } finally { setDeleting(false); }
+  };
   return (
-    <button onClick={onOpen}
-      className={`w-full text-left bg-card border rounded-xl p-4 hover:border-primary/60 transition active:scale-[0.99] ${a.isActive ? "border-border" : "border-destructive/60 opacity-80"}`}>
-      <div className="flex items-start gap-3">
-        <AthleteAvatar path={a.avatarPath} name={a.name} size={44} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-base truncate">{a.name}</h3>
-            <CertDot status={cs} />
-            {!a.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/50">SUSPENDIDO</span>}
-            {a.isActive && !a.paidThisMonth && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn border border-warn/50">ADEUDA</span>}
+    <div className={`bg-card border rounded-xl ${a.isActive ? "border-border" : "border-destructive/60 opacity-90"}`}>
+      <button type="button" onClick={onOpen}
+        className="w-full text-left p-4 hover:border-primary/60 transition active:scale-[0.99] rounded-xl">
+        <div className="flex items-start gap-3">
+          <AthleteAvatar path={a.avatarPath} name={a.name} size={44} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-base truncate">{a.name}</h3>
+              <CertDot status={cs} />
+              {!a.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/50">SUSPENDIDO</span>}
+              {a.isActive && !a.paidThisMonth && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn border border-warn/50">ADEUDA</span>}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Macro: <span className="text-primary">{full.data?.macroByMonth[monthKey()] || "—"}</span>
+            </p>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5">DNI {a.dni || "—"} · Nac. {fmtDateAR(a.birthDate)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Macro: <span className="text-primary">{full.data?.macroByMonth[monthKey()] || "—"}</span>
-          </p>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
+            <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
+            <p className="font-semibold">{a.monthKm.toFixed(0)} km</p>
+          </div>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Semana</p>
-          <p className="font-bold text-primary glow-text">{full.data ? weekKmFor(full.data).toFixed(1) : "0.0"} km</p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Mes</p>
-          <p className="font-semibold">{a.monthKm.toFixed(0)} km</p>
+      </button>
+      {showDelete && (
+        <div className="px-4 pb-3">
+          <button type="button" onClick={onDelete} disabled={deleting}
+            className="w-full bg-destructive/15 text-destructive border border-destructive/50 rounded-lg py-2 text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+            <Trash2 className="size-3.5" /> {deleting ? "Eliminando..." : "Eliminar definitivamente"}
+          </button>
         </div>
-      </div>
-    </button>
+      )}
+    </div>
   );
 }
 
