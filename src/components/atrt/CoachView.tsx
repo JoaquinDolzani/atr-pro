@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import {
   ChevronLeft, Activity, AlertTriangle, CheckCircle2, XCircle, LineChart as LineIcon,
   Trophy, Plus, Star, Settings, FileText, X, ClipboardList, Save, CalendarDays, Trash2, ChevronRight,
-  DollarSign, ShieldOff, ShieldCheck, Search, Archive,
+  DollarSign, ShieldOff, ShieldCheck, Search, Archive, Link2, Image as ImgIcon, Target,
 } from "lucide-react";
 import {
   certStatus, weekKmFor, monthKm, monthKey, zones, vam, fmtTime, fmtDateAR, activeRace,
-  lastMonthKeys, monthLabel,
+  paymentMonthKeys, monthLabel,
   type MacroPhase, type ZoneKey, type SessionType, type Microcycle, type TrainingBlock, type Race,
 } from "@/lib/atrt-derive";
 import {
   useAuth, useAthleteList, useAthlete, useCoachSettings, useCoachSettingsMutation, useMutations, signedCertUrl, signedAvatarUrl,
 } from "@/lib/atrt-data";
+import { deleteAthlete } from "@/lib/admin.functions";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PHASES: MacroPhase[] = ["General", "Pre-competitivo", "Competitivo", "Transición"];
 const SESSIONS: SessionType[] = ["Pasadas", "Fondo", "Tempo", "Fuerza", "Cuestas"];
