@@ -678,6 +678,8 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
       {children}
     </section>
   );
+}
+
 
 function ReportPhoto({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(path.startsWith("http") ? path : null);
