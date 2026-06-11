@@ -538,12 +538,12 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
     <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
       <div className="bg-secondary/40 rounded-xl p-3">
         <div className="flex items-center justify-between mb-2">
-          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
+          <button type="button" onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="p-1"><ChevronLeft className="size-4" /></button>
           <p key={viewMonth.getTime()} className="text-sm font-semibold flex items-center gap-1 capitalize">
             <CalendarDays className="size-4 text-primary" />
             {monthHeader}
           </p>
-          <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
+          <button type="button" onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="p-1"><ChevronRight className="size-4" /></button>
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <div>
