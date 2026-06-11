@@ -678,7 +678,65 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
       {children}
     </section>
   );
+
+function ReportPhoto({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(path.startsWith("http") ? path : null);
+  useEffect(() => {
+    let alive = true;
+    if (!path || path.startsWith("http")) return;
+    import("@/integrations/supabase/client").then(({ supabase }) =>
+      supabase.storage.from("report-photos").createSignedUrl(path, 3600).then(({ data }) => {
+        if (alive && data?.signedUrl) setUrl(data.signedUrl);
+      }));
+    return () => { alive = false; };
+  }, [path]);
+  if (!url) return <div className="h-24 w-24 rounded-lg bg-secondary animate-pulse shrink-0" />;
+  return <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto reporte" className="h-24 rounded-lg border border-border" /></a>;
 }
+
+function ReportsHistory({ reports }: { reports: Record<string, import("@/lib/atrt-derive").Report> }) {
+  const items = Object.values(reports).sort((a, b) => b.date.localeCompare(a.date));
+  if (items.length === 0) return null;
+  return (
+    <Section icon={<ClipboardList className="size-4" />} title="Actividades realizadas por el atleta">
+      <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+        {items.map((r) => (
+          <div key={r.date} className="bg-secondary/40 border border-border rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs font-semibold text-primary">{fmtDateAR(r.date)}</p>
+              <div className="flex gap-3 text-xs">
+                <span><span className="text-muted-foreground">KM</span> <b>{r.km}</b></span>
+                <span><span className="text-muted-foreground">Min</span> <b>{r.timeMin}</b></span>
+                <span><span className="text-muted-foreground">RPE</span> <b>{r.rpe}/10</b></span>
+              </div>
+            </div>
+            {r.links?.length > 0 && (
+              <div className="space-y-1">
+                {r.links.map((l, i) => (
+                  <a key={i} href={l} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary truncate hover:underline">
+                    <Link2 className="size-3 shrink-0" /> <span className="truncate">{l}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+            {r.photos?.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {r.photos.map((p, i) => <ReportPhoto key={i} path={p} />)}
+              </div>
+            )}
+            {r.notes && (
+              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-2">"{r.notes}"</p>
+            )}
+            {!r.photos?.length && !r.links?.length && !r.notes && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1"><ImgIcon className="size-3" /> Reporte sin adjuntos.</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 
 function AddRace({ onAdd }: { onAdd: (r: { date: string; name: string; distanceKm: number; timeSec: number }) => void }) {
   const [open, setOpen] = useState(false);
