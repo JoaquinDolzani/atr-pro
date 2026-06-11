@@ -69,6 +69,28 @@ export function lastMonthKeys(n = 6): string[] {
   return out;
 }
 
+// Dynamic list: from earliest of {first recorded payment, Jan of current year} up to current month.
+export function paymentMonthKeys(recorded: Record<string, boolean> = {}): string[] {
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth();
+  const keys = Object.keys(recorded);
+  let startY = curY, startM = 0; // default: Jan current year
+  if (keys.length) {
+    const sorted = [...keys].sort();
+    const [y, m] = sorted[0].split("-").map(Number);
+    if (y < startY || (y === startY && m - 1 < startM)) { startY = y; startM = m - 1; }
+  }
+  const out: string[] = [];
+  let y = startY, m = startM;
+  while (y < curY || (y === curY && m <= curM)) {
+    out.push(`${y}-${(m + 1).toString().padStart(2, "0")}`);
+    m++;
+    if (m > 11) { m = 0; y++; }
+  }
+  return out;
+}
+
 export function monthLabel(mk: string): string {
   const [y, m] = mk.split("-").map(Number);
   const d = new Date(y, m - 1, 1);
