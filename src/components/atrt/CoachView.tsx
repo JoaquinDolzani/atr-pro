@@ -491,23 +491,41 @@ function buildMonthWeeks(viewMonth: Date) {
   return weeks;
 }
 
-function TrainingPlanner({ trainings, onSave, onDelete }: {
+function TrainingPlanner({ trainings, reports, onSave, onDelete }: {
   trainings: Record<string, TrainingBlock>;
+  reports: Record<string, import("@/lib/atrt-derive").Report>;
   onSave: (date: string, block: TrainingBlock) => void | Promise<unknown>;
   onDelete: (date: string) => void;
 }) {
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState(toIso(today));
-  const [form, setForm] = useState<TrainingBlock>(trainings[toIso(today)] || EMPTY_BLOCK);
+  const safeToday = toIso(today);
+  const [selectedDate, setSelectedDate] = useState<string>(safeToday);
+  const [form, setForm] = useState<TrainingBlock>(
+    trainings[safeToday] ? { ...EMPTY_BLOCK, ...trainings[safeToday] } : EMPTY_BLOCK
+  );
   const [msg, setMsg] = useState<string | null>(null);
   const isEdit = !!trainings[selectedDate];
+  const currentReport = reports[selectedDate];
 
   const selectDay = (d: Date) => {
-    const iso = toIso(d);
-    setSelectedDate(iso);
-    setForm(trainings[iso] ? { ...EMPTY_BLOCK, ...trainings[iso] } : EMPTY_BLOCK);
-    setMsg(null);
+    try {
+      if (!(d instanceof Date) || isNaN(d.getTime())) {
+        setSelectedDate(safeToday);
+        setForm(EMPTY_BLOCK);
+        setMsg("Fecha inválida.");
+        return;
+      }
+      const iso = toIso(d);
+      setSelectedDate(iso);
+      const t = trainings[iso];
+      setForm(t && typeof t === "object" ? { ...EMPTY_BLOCK, ...t } : EMPTY_BLOCK);
+      setMsg(null);
+    } catch (err) {
+      console.error("selectDay error", err);
+      setForm(EMPTY_BLOCK);
+      setMsg("No se pudo abrir ese día. Reintentá.");
+    }
   };
 
   const weeks = useMemo(() => buildMonthWeeks(viewMonth), [viewMonth]);
