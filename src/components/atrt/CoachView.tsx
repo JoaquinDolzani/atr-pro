@@ -619,6 +619,40 @@ function TrainingPlanner({ trainings, reports, onSave, onDelete }: {
             </span>
           )}
         </p>
+
+        {currentReport && (
+          <div className="bg-success/5 border border-success/40 rounded-xl p-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-widest text-success font-semibold flex items-center gap-1">
+              <CheckCircle2 className="size-3" /> Feedback del atleta
+            </p>
+            <div className="flex gap-3 text-xs flex-wrap">
+              <span><span className="text-muted-foreground">KM</span> <b>{currentReport.km}</b></span>
+              <span><span className="text-muted-foreground">Min</span> <b>{currentReport.timeMin}</b></span>
+              <span><span className="text-muted-foreground">RPE</span> <b>{currentReport.rpe}/10</b></span>
+            </div>
+            {currentReport.links?.length > 0 && (
+              <div className="space-y-1">
+                {currentReport.links.map((l, i) => (
+                  <a key={i} href={l} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary truncate hover:underline">
+                    <Link2 className="size-3 shrink-0" /> <span className="truncate">{l}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+            {currentReport.photos?.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {currentReport.photos.map((p, i) => <ReportPhoto key={i} path={p} />)}
+              </div>
+            )}
+            {currentReport.notes && (
+              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-2">"{currentReport.notes}"</p>
+            )}
+            {!currentReport.photos?.length && !currentReport.links?.length && !currentReport.notes && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1"><ImgIcon className="size-3" /> Reporte sin adjuntos.</p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Tipo</label>
