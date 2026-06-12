@@ -38,7 +38,7 @@ export function CoachView() {
   const activeCount = (list.data || []).filter((a) => a.isActive).length;
   const archivedCount = (list.data || []).filter((a) => !a.isActive).length;
 
-  if (selectedId) return <AthleteCard athleteId={selectedId} onBack={() => setSelectedId(null)} />;
+  if (selectedId) return <AthleteCard key={selectedId} athleteId={selectedId} onBack={() => setSelectedId(null)} />;
 
   return (
     <div className="space-y-4">
