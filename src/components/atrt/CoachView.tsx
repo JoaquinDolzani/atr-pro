@@ -569,37 +569,54 @@ function TrainingPlanner({ trainings, reports, onSave, onDelete }: {
               {["D","L","M","X","J","V","S"].map((d) => <div key={d}>{d}</div>)}
             </div>
             <div className="space-y-1">
-              {weeks.map((row, i) => (
-                <div key={i} className="grid grid-cols-7 gap-1">
-                  {row.map((d) => {
-                    const iso = toIso(d);
-                    const inMonth = d.getMonth() === viewMonth.getMonth();
-                    const t = trainings[iso];
-                    const has = !!t;
-                    const done = !!t?.completed;
-                    const selected = iso === selectedDate;
-                    return (
-                      <button key={iso} type="button" onClick={() => selectDay(d)}
-                        className={`relative aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition
-                          ${selected ? "bg-primary text-primary-foreground glow font-bold"
-                            : done ? "bg-success/20 border border-success/60 text-foreground"
-                            : has ? "bg-primary/20 border border-primary/60 text-foreground"
-                            : inMonth ? "bg-card border border-border" : "text-muted-foreground/40"}`}>
-                        <span>{d.getDate()}</span>
-                        {has && !selected && !done && <span className="size-1 rounded-full bg-primary mt-0.5" />}
-                        {done && <CheckCircle2 className="absolute top-0.5 right-0.5 size-2.5 text-success" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+              {weeks.map((row) => {
+                const weekKey = toIso(row[0]);
+                return (
+                  <div key={weekKey} className="grid grid-cols-7 gap-1">
+                    {row.map((d) => {
+                      const iso = toIso(d);
+                      const inMonth = d.getMonth() === viewMonth.getMonth();
+                      const t = trainings[iso];
+                      const has = !!t;
+                      const done = !!t?.completed;
+                      const selected = iso === selectedDate;
+                      const dotClass = selected
+                        ? "bg-primary text-primary-foreground glow font-bold"
+                        : done ? "bg-success/20 border border-success/60 text-foreground"
+                        : has ? "bg-primary/20 border border-primary/60 text-foreground"
+                        : inMonth ? "bg-card border border-border" : "text-muted-foreground/40";
+                      return (
+                        <button
+                          key={iso}
+                          type="button"
+                          onClick={(e) => {
+                            try {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              selectDay(d);
+                            } catch (err) {
+                              console.error("day click failed", err);
+                            }
+                          }}
+                          className={`relative aspect-square rounded-md text-[11px] flex flex-col items-center justify-center transition ${dotClass}`}
+                        >
+                          <span key={`n-${iso}`}>{d.getDate()}</span>
+                          <span key={`m-${iso}`} className={`size-1 rounded-full mt-0.5 ${has && !selected && !done ? "bg-primary" : "opacity-0"}`} />
+                          <CheckCircle2 key={`c-${iso}`} className={`absolute top-0.5 right-0.5 size-2.5 text-success ${done ? "" : "hidden"}`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="flex flex-col gap-1 pt-[22px]">
-            {weeks.map((row, i) => {
+            {weeks.map((row) => {
+              const weekKey = toIso(row[0]);
               const km = row.reduce((acc, d) => acc + (trainings[toIso(d)]?.plannedKm || 0), 0);
               return (
-                <div key={i} className="aspect-square min-w-[44px] rounded-md bg-card border border-border flex flex-col items-center justify-center text-center px-1">
+                <div key={weekKey} className="aspect-square min-w-[44px] rounded-md bg-card border border-border flex flex-col items-center justify-center text-center px-1">
                   <span className="text-[8px] uppercase tracking-wider text-muted-foreground leading-none">Sem</span>
                   <span className={`text-xs font-bold leading-tight ${km > 0 ? "text-primary" : "text-muted-foreground"}`}>{km}</span>
                   <span className="text-[8px] text-muted-foreground leading-none">km</span>
