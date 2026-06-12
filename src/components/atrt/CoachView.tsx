@@ -373,8 +373,6 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         )}
       </Section>
 
-      <ReportsHistory reports={a.reports} />
-
       <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
         <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
           {paymentMonthKeys(a.payments).slice().reverse().map((mk) => {
@@ -393,13 +391,15 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         </div>
       </Section>
 
-
-
-      <TrainingPlanner
-        trainings={a.trainings}
-        onSave={(date, block) => m.upsertTraining.mutateAsync({ date, block })}
-        onDelete={(date) => m.deleteTraining.mutate(date)}
-      />
+      <PlannerErrorBoundary>
+        <TrainingPlanner
+          key={athleteId}
+          trainings={a.trainings}
+          reports={a.reports}
+          onSave={(date, block) => m.upsertTraining.mutateAsync({ date, block })}
+          onDelete={(date) => m.deleteTraining.mutate(date)}
+        />
+      </PlannerErrorBoundary>
 
       {showCert && certUrl && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setShowCert(false)}>
