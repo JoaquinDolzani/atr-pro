@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import {
@@ -38,7 +38,7 @@ export function CoachView() {
   const activeCount = (list.data || []).filter((a) => a.isActive).length;
   const archivedCount = (list.data || []).filter((a) => !a.isActive).length;
 
-  if (selectedId) return <AthleteCard athleteId={selectedId} onBack={() => setSelectedId(null)} />;
+  if (selectedId) return <AthleteCard key={selectedId} athleteId={selectedId} onBack={() => setSelectedId(null)} />;
 
   return (
     <div className="space-y-4">
@@ -373,8 +373,6 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         )}
       </Section>
 
-      <ReportsHistory reports={a.reports} />
-
       <Section icon={<DollarSign className="size-4" />} title="Gestión de pagos">
         <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
           {paymentMonthKeys(a.payments).slice().reverse().map((mk) => {
@@ -393,13 +391,15 @@ function AthleteCard({ athleteId, onBack }: { athleteId: string; onBack: () => v
         </div>
       </Section>
 
-
-
-      <TrainingPlanner
-        trainings={a.trainings}
-        onSave={(date, block) => m.upsertTraining.mutateAsync({ date, block })}
-        onDelete={(date) => m.deleteTraining.mutate(date)}
-      />
+      <PlannerErrorBoundary>
+        <TrainingPlanner
+          key={athleteId}
+          trainings={a.trainings}
+          reports={a.reports}
+          onSave={(date, block) => m.upsertTraining.mutateAsync({ date, block })}
+          onDelete={(date) => m.deleteTraining.mutate(date)}
+        />
+      </PlannerErrorBoundary>
 
       {showCert && certUrl && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setShowCert(false)}>
@@ -491,23 +491,41 @@ function buildMonthWeeks(viewMonth: Date) {
   return weeks;
 }
 
-function TrainingPlanner({ trainings, onSave, onDelete }: {
+function TrainingPlanner({ trainings, reports, onSave, onDelete }: {
   trainings: Record<string, TrainingBlock>;
+  reports: Record<string, import("@/lib/atrt-derive").Report>;
   onSave: (date: string, block: TrainingBlock) => void | Promise<unknown>;
   onDelete: (date: string) => void;
 }) {
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState(toIso(today));
-  const [form, setForm] = useState<TrainingBlock>(trainings[toIso(today)] || EMPTY_BLOCK);
+  const safeToday = toIso(today);
+  const [selectedDate, setSelectedDate] = useState<string>(safeToday);
+  const [form, setForm] = useState<TrainingBlock>(
+    trainings[safeToday] ? { ...EMPTY_BLOCK, ...trainings[safeToday] } : EMPTY_BLOCK
+  );
   const [msg, setMsg] = useState<string | null>(null);
   const isEdit = !!trainings[selectedDate];
+  const currentReport = reports[selectedDate];
 
   const selectDay = (d: Date) => {
-    const iso = toIso(d);
-    setSelectedDate(iso);
-    setForm(trainings[iso] ? { ...EMPTY_BLOCK, ...trainings[iso] } : EMPTY_BLOCK);
-    setMsg(null);
+    try {
+      if (!(d instanceof Date) || isNaN(d.getTime())) {
+        setSelectedDate(safeToday);
+        setForm(EMPTY_BLOCK);
+        setMsg("Fecha inválida.");
+        return;
+      }
+      const iso = toIso(d);
+      setSelectedDate(iso);
+      const t = trainings[iso];
+      setForm(t && typeof t === "object" ? { ...EMPTY_BLOCK, ...t } : EMPTY_BLOCK);
+      setMsg(null);
+    } catch (err) {
+      console.error("selectDay error", err);
+      setForm(EMPTY_BLOCK);
+      setMsg("No se pudo abrir ese día. Reintentá.");
+    }
   };
 
   const weeks = useMemo(() => buildMonthWeeks(viewMonth), [viewMonth]);
@@ -601,6 +619,40 @@ function TrainingPlanner({ trainings, onSave, onDelete }: {
             </span>
           )}
         </p>
+
+        {currentReport && (
+          <div className="bg-success/5 border border-success/40 rounded-xl p-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-widest text-success font-semibold flex items-center gap-1">
+              <CheckCircle2 className="size-3" /> Feedback del atleta
+            </p>
+            <div className="flex gap-3 text-xs flex-wrap">
+              <span><span className="text-muted-foreground">KM</span> <b>{currentReport.km}</b></span>
+              <span><span className="text-muted-foreground">Min</span> <b>{currentReport.timeMin}</b></span>
+              <span><span className="text-muted-foreground">RPE</span> <b>{currentReport.rpe}/10</b></span>
+            </div>
+            {currentReport.links?.length > 0 && (
+              <div className="space-y-1">
+                {currentReport.links.map((l, i) => (
+                  <a key={i} href={l} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary truncate hover:underline">
+                    <Link2 className="size-3 shrink-0" /> <span className="truncate">{l}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+            {currentReport.photos?.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {currentReport.photos.map((p, i) => <ReportPhoto key={i} path={p} />)}
+              </div>
+            )}
+            {currentReport.notes && (
+              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-2">"{currentReport.notes}"</p>
+            )}
+            {!currentReport.photos?.length && !currentReport.links?.length && !currentReport.notes && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1"><ImgIcon className="size-3" /> Reporte sin adjuntos.</p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Tipo</label>
@@ -696,48 +748,30 @@ function ReportPhoto({ path }: { path: string }) {
   return <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto reporte" className="h-24 rounded-lg border border-border" /></a>;
 }
 
-function ReportsHistory({ reports }: { reports: Record<string, import("@/lib/atrt-derive").Report> }) {
-  const items = Object.values(reports).sort((a, b) => b.date.localeCompare(a.date));
-  if (items.length === 0) return null;
-  return (
-    <Section icon={<ClipboardList className="size-4" />} title="Actividades realizadas por el atleta">
-      <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
-        {items.map((r) => (
-          <div key={r.date} className="bg-secondary/40 border border-border rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-xs font-semibold text-primary">{fmtDateAR(r.date)}</p>
-              <div className="flex gap-3 text-xs">
-                <span><span className="text-muted-foreground">KM</span> <b>{r.km}</b></span>
-                <span><span className="text-muted-foreground">Min</span> <b>{r.timeMin}</b></span>
-                <span><span className="text-muted-foreground">RPE</span> <b>{r.rpe}/10</b></span>
-              </div>
-            </div>
-            {r.links?.length > 0 && (
-              <div className="space-y-1">
-                {r.links.map((l, i) => (
-                  <a key={i} href={l} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary truncate hover:underline">
-                    <Link2 className="size-3 shrink-0" /> <span className="truncate">{l}</span>
-                  </a>
-                ))}
-              </div>
-            )}
-            {r.photos?.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {r.photos.map((p, i) => <ReportPhoto key={i} path={p} />)}
-              </div>
-            )}
-            {r.notes && (
-              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-2">"{r.notes}"</p>
-            )}
-            {!r.photos?.length && !r.links?.length && !r.notes && (
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1"><ImgIcon className="size-3" /> Reporte sin adjuntos.</p>
-            )}
+class PlannerErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.error("Planner crashed:", error); }
+  reset = () => this.setState({ error: null });
+  render() {
+    if (this.state.error) {
+      return (
+        <Section icon={<ClipboardList className="size-4" />} title="Planificación de entrenamientos">
+          <div className="bg-destructive/10 border border-destructive/40 rounded-xl p-4 text-sm space-y-2">
+            <p className="font-semibold text-destructive">No pudimos cargar el calendario.</p>
+            <p className="text-xs text-muted-foreground">{this.state.error.message}</p>
+            <button type="button" onClick={this.reset}
+              className="bg-primary text-primary-foreground rounded-lg px-3 py-1.5 text-xs font-semibold">
+              Reintentar
+            </button>
           </div>
-        ))}
-      </div>
-    </Section>
-  );
+        </Section>
+      );
+    }
+    return this.props.children;
+  }
 }
+
 
 
 function AddRace({ onAdd }: { onAdd: (r: { date: string; name: string; distanceKm: number; timeSec: number }) => void }) {
